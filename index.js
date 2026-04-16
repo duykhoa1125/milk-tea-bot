@@ -1,4 +1,6 @@
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import "dotenv/config";
+import { Bot } from "grammy";
 
 const bot = new Bot(process.env.TELEGRAM_BOT_TOKEN);
 
@@ -20,7 +22,7 @@ YÊU CẦU DÀNH CHO BOT:
 `;
 
 const model = genAI.getGenerativeModel({
-  model: "gemini-3-flash",
+  model: "gemini-3.1-flash-lite-preview",
   systemInstruction: menu,
 });
 
