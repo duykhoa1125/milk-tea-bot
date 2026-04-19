@@ -4,6 +4,10 @@ import "dotenv/config";
 export const config = {
     TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN || '',
     GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
+    
     PORT: Number(process.env.PORT) || 3000,
     WEBHOOK_URL: process.env.WEBHOOK_URL || '',
+
+    UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL || '',
+    UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN || ''
 }

@@ -1,6 +1,6 @@
 import { Bot, webhookCallback } from 'grammy';
 import { config } from './../config/env';
-import { chatModel, getAIResponse } from '../ai/gemini';
+import { chatModel, handleAIFlow } from '../ai/gemini';
 
 //initialize bot
 export const bot = new Bot(config.TELEGRAM_BOT_TOKEN)
@@ -11,17 +11,19 @@ bot.command("menu", (ctx) => ctx.reply("Đây là menu của chúng tôi: Trà S
 
 //handle all text messages
 bot.on("message:text", async (ctx) => {
+    const userId = ctx.from.id;
     const userText = ctx.message.text;
 
     await ctx.replyWithChatAction("typing");
 
-    const replyText = await getAIResponse(userText);
+    const replyText = await handleAIFlow(userId, userText);
 
     await ctx.reply(replyText);
 });
 
 //handle all photo
 bot.on("message:photo", async (ctx) => {
+    const userId = ctx.from.id;
     await ctx.replyWithChatAction("typing");
 
     // Get image ID (select the image with the highest quality / resolution is the last element)

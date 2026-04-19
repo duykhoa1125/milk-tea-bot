@@ -12,3 +12,4 @@ pnpm-debug.log*
 .vscode/
 *.sqlite
 *.sqlite-journal
+docs/
