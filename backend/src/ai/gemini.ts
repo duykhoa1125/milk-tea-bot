@@ -96,11 +96,13 @@ export const handleAIFlow = async (
         functionResult = result.error
           ? { status: "error", message: result.error }
           : {
-            status: "success",
-            orderId: result.orderId,
-            totalPrice: result.totalPrice,
-            message: "Đơn hàng đã được chốt!",
-          };
+              status: "success",
+              orderId: result.orderId,
+              orderCode: result.orderCode,
+              totalPrice: result.totalPrice,
+              checkoutUrl: result.checkoutUrl,
+              message: "Đơn hàng đã được chốt!",
+            };
       }
 
       // GỬI KẾT QUẢ CỦA HÀM NGƯỢC XUỐNG CHO AI
@@ -115,6 +117,19 @@ export const handleAIFlow = async (
       ]);
 
       aiMessage = response.response;
+
+      if (funcName === "checkout_cart") {
+        if (functionResult.status === "error") {
+          return functionResult.message;
+        }
+
+        return [
+          `Đơn #${functionResult.orderId} đã được tạo.`,
+          `Tổng tiền: ${functionResult.totalPrice.toLocaleString("vi-VN")}đ`,
+          `Thanh toán tại đây: ${functionResult.checkoutUrl}`,
+          "Sau khi thanh toán thành công, mình sẽ tự cập nhật trạng thái đơn cho bạn.",
+        ].join("\n");
+      }
     }
 
     // KHI AI TRẢ LỜI NGÔN NGỮ TỰ NHIÊN (TEXT)

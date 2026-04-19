@@ -14,6 +14,7 @@ enum ProductType {
 }
 
 enum OrderStatus {
+  PENDING_PAYMENT
   PENDING
   COOKING
   DONE
@@ -53,8 +54,11 @@ model Order {
   userId     Int
   user       User        @relation(fields: [userId], references: [id])
   totalPrice Int
-  status     OrderStatus @default(PENDING)
+  status     OrderStatus @default(PENDING_PAYMENT)
   note       String?                 // Ghi chú chung của đơn (không phải từng món)
+  telegramId String?
+  paymentLinkId String?
+  paidAt     DateTime?
   items      OrderItem[]
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt  // Tự cập nhật khi status thay đổi
