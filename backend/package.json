@@ -2,7 +2,7 @@
   "name": "milk-tea-bot",
   "version": "1.0.0",
   "main": "src/index.ts",
-  "type": "module",
+  "type": "commonjs",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "prisma generate && tsc",
