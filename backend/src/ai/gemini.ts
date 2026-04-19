@@ -13,7 +13,7 @@ import { getMenuPromptText } from "../services/menu.service";
 const genAI = new GoogleGenerativeAI(config.GEMINI_API_KEY);
 
 export const chatModel = genAI.getGenerativeModel({
-  model: "gemini-3.1-flash-lite-preview",
+  model: "gemini-3-flash-preview",
   systemInstruction: SYSTEM_INSTRUCTION,
   tools: [
     {
