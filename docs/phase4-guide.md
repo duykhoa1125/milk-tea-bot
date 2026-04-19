@@ -1,171 +1,80 @@
 # Hướng Dẫn Chi Tiết: Giai Đoạn 4 - Kitchen Dashboard & Go Live (Tuần 6-10)
 
-> [!IMPORTANT]
-> Trước khi bắt đầu Giai đoạn 4, cần hoàn thiện **2 việc còn dang dở từ Giai đoạn 3**. Các phần này là prerequisite bắt buộc.
-
----
-
-## 🔧 Hoàn Thiện Giai Đoạn 3 (Prerequisite)
-
-### P-1: Đăng ký Tool `checkout_cart` vào Gemini
-
-Hiện tại tool `checkoutCartDeclaration` đã được khai báo trong `tools.ts` nhưng **chưa được truyền vào model**. AI không biết tool này tồn tại.
-
-Sửa file `src/ai/gemini.ts`, cập nhật phần import và `tools[]`:
-
-```typescript
-// src/ai/gemini.ts
-import { addToCartDeclaration, viewCartDeclaration, checkoutCartDeclaration } from "./tools";
-import { addToCart, getCart } from "../services/cart.service";
-import { checkout } from "../services/order.service"; // THÊM IMPORT NÀY
-
-// Cập nhật tools trong getGenerativeModel:
-tools: [
-    {
-        functionDeclarations: [
-            addToCartDeclaration,
-            viewCartDeclaration,
-            checkoutCartDeclaration // THÊM VÀO ĐÂY
-        ]
-    }
-]
-```
-
-Sau đó, trong vòng lặp function calling, thêm case xử lý `checkout_cart`:
-
-```typescript
-// Thêm vào trong while loop của handleAIFlow
-else if (funcName === 'checkout_cart') {
-    const authorName = ''; // Cần truyền từ ctx Telegram xuống — xem P-2
-    const result = await checkout(
-        String(userId),
-        authorName,
-        args.note
-    );
-    functionResult = result.error
-        ? { status: "error", message: result.error }
-        : { status: "success", orderId: result.orderId, message: "Đơn hàng đã được chốt thành công!" };
-}
-```
+> [!NOTE]
+> **Prerequisite đã hoàn thành!**
+> - ✅ `checkout_cart` tool đã được đăng ký vào Gemini model.
+> - ✅ `unitPrice` đã được tính động từ DB thông qua `priceM`/`priceL`/`priceFixed`.
 
 > [!NOTE]
-> `handleAIFlow` hiện chỉ nhận `userId` (number). Bạn cần truyền thêm `userName` string từ bot instance xuống. Sửa signature: `handleAIFlow(userId: number, userName: string, userPrompt: string)` và cập nhật `bot/instance.ts` truyền `ctx.from.first_name`.
-
-### P-2: Tính Giá Động trong `order.service.ts`
-
-Hiện tại `unitPrice` đang hardcode `40000`. Cần query DB để lấy giá thực tế theo size M/L.
-
-Thay thế phần tạo order trong `src/services/order.service.ts`:
-
-```typescript
-// src/services/order.service.ts
-import pkg from 'pg';
-import { PrismaPg } from '@prisma/adapter-pg';
-
-const { Pool } = pkg;
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
-
-export const checkout = async (telegramId: string, authorName: string, overallNote?: string) => {
-    const cart = await getCart(telegramId);
-    if (!cart || cart.length === 0) return { error: "Giỏ hàng rỗng" };
-
-    const user = await prisma.user.upsert({
-        where: { externalId: telegramId },
-        update: { name: authorName },
-        create: { externalId: telegramId, name: authorName }
-    });
-
-    // Tính giá động: lấy thông tin Product từ DB
-    let calculatedTotal = 0;
-    const itemsWithPrice = await Promise.all(cart.map(async (item) => {
-        const product = await prisma.product.findUnique({ where: { id: item.productId } });
-        const unitPrice = item.size === 'L'
-            ? (product?.priceL ?? product?.priceFixed ?? 0)
-            : (product?.priceM ?? product?.priceFixed ?? 0);
-        calculatedTotal += unitPrice * item.quantity;
-        return {
-            productId: item.productId,
-            size: item.size,
-            unitPrice,
-            quantity: item.quantity,
-            toppings: item.toppings, // [{id, name, price}] — sẽ cần chuẩn hóa sau
-            note: item.note,
-        };
-    }));
-
-    const order = await prisma.order.create({
-        data: {
-            userId: user.id,
-            totalPrice: calculatedTotal,
-            note: overallNote,
-            items: { create: itemsWithPrice }
-        }
-    });
-
-    await clearCart(telegramId);
-    return { success: true, orderId: order.id, totalPrice: calculatedTotal };
-}
-```
+> **Cấu trúc dự án đã thay đổi!** Project đã được tổ chức lại thành monorepo:
+> - Backend (Bot + Express + API): `backend/`
+> - Frontend (Kitchen Dashboard — UI only): `frontend/`
 
 ---
 
-## 📊 Giai Đoạn 4A: Kitchen Dashboard (Tuần 6-7)
+## Kiến Trúc Giai Đoạn 4
 
-**Mục tiêu:** Nhân viên quán có giao diện web để theo dõi và cập nhật trạng thái đơn hàng realtime.
+```
+Frontend (Next.js)          Backend (Express)           Database
+     │                            │                         │
+     │ fetch /api/orders ─────────►│                         │
+     │                            │─── prisma.findMany() ───►│
+     │◄─────────────── JSON ──────│◄── orders ──────────────│
+     │                            │                         │
+     │ fetch /api/orders/1/status ►│                         │
+     │                            │─── prisma.update() ─────►│
+     │                            │─── sendTelegramMsg() ───►│ (Telegram API)
+     │◄─────────────── OK ────────│                         │
+```
 
-### Tuần 6: Khởi tạo Next.js Dashboard
+> [!IMPORTANT]
+> **Frontend KHÔNG kết nối trực tiếp vào Database.** Mọi thao tác dữ liệu đều đi qua Backend API. Frontend chỉ cần biết URL của Backend.
 
-Dashboard sẽ nằm trong một thư mục **riêng biệt** trong project, dùng chung PostgreSQL database.
+---
+
+## 📊 Giai Đoạn 4A: Thêm Dashboard API vào Backend (Tuần 6)
+
+### Bước 1: Thêm CORS middleware vào Backend
+
+Frontend chạy ở port khác, cần cho phép Cross-Origin requests.
 
 ```bash
-# Tạo thư mục dashboard trong project
-npx -y create-next-app@latest dashboard --typescript --tailwind --app --no-src-dir --import-alias "@/*"
-cd dashboard
-npm install @prisma/client @prisma/adapter-pg pg
+cd backend
+npm install cors @types/cors
 ```
 
-Cấu hình để `dashboard` dùng cùng `prisma/schema.prisma` của project gốc:
+Cập nhật `backend/src/index.ts`:
 
-```bash
-# Trong thư mục dashboard, tạo symlink hoặc copy schema
-# Cách đơn giản nhất: copy file schema.prisma vào dashboard/prisma/
-# và đảm bảo DATABASE_URL trong dashboard/.env trỏ cùng DB
-```
-
-### Cấu trúc Dashboard
-
-```text
-dashboard/
-├── app/
-│   ├── page.tsx         # Trang chính: Danh sách đơn PENDING
-│   ├── layout.tsx
-│   └── api/
-│       └── orders/
-│           └── route.ts # API route: GET danh sách đơn, PATCH đổi status
-├── components/
-│   ├── OrderCard.tsx    # Component mỗi ticket đơn hàng
-│   └── KanbanBoard.tsx  # Board 3 cột: PENDING | COOKING | DONE
-└── prisma/
-    └── schema.prisma    # Copy từ project gốc
-```
-
-### Tuần 6 - Code cốt lõi:
-
-**`dashboard/app/api/orders/route.ts` (API lấy danh sách đơn):**
 ```typescript
-import { NextRequest, NextResponse } from 'next/server';
+import cors from 'cors';
+
+// Thêm BEFORE các route khác
+app.use(cors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:3001',
+    methods: ['GET', 'PATCH', 'POST'],
+}));
+```
+
+Thêm `FRONTEND_URL=http://localhost:3001` vào `backend/.env`.
+
+### Bước 2: Tạo Dashboard Router trong Backend
+
+Tạo file `backend/src/routes/dashboard.ts`:
+
+```typescript
+import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import pkg from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 
+const router = Router();
 const { Pool } = pkg;
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
+const prisma = new PrismaClient({
+    adapter: new PrismaPg(new Pool({ connectionString: process.env.DATABASE_URL }))
+});
 
-// GET: Lấy tất cả đơn đang chạy
-export async function GET() {
+// GET /api/orders — Lấy đơn PENDING và COOKING
+router.get('/orders', async (req: Request, res: Response) => {
     const orders = await prisma.order.findMany({
         where: { status: { in: ['PENDING', 'COOKING'] } },
         include: {
@@ -174,38 +83,118 @@ export async function GET() {
         },
         orderBy: { createdAt: 'asc' }
     });
-    return NextResponse.json(orders);
-}
+    res.json(orders);
+});
 
-// PATCH: Cập nhật trạng thái đơn
-export async function PATCH(req: NextRequest) {
-    const { orderId, status } = await req.json();
+// PATCH /api/orders/:id/status — Đổi trạng thái đơn
+router.patch('/orders/:id/status', async (req: Request, res: Response) => {
+    const orderId = Number(req.params.id);
+    const { status } = req.body;
+
     const updated = await prisma.order.update({
         where: { id: orderId },
-        data: { status }
+        data: { status },
+        include: { user: true }
     });
-    return NextResponse.json(updated);
-}
+
+    // Nếu DONE -> tự động gửi Telegram thông báo khách
+    if (status === 'DONE' && updated.user) {
+        const chatId = updated.user.externalId;
+        const message = `✅ Đơn hàng #${orderId} của bạn đã sẵn sàng! Mời bạn đến lấy đồ nhé ☕`;
+        await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: chatId, text: message })
+        });
+    }
+
+    res.json(updated);
+});
+
+export default router;
 ```
 
-**`dashboard/components/OrderCard.tsx`:**
+### Bước 3: Đăng ký Router vào Express App
+
+Cập nhật `backend/src/index.ts`, thêm sau phần setup webhook:
+
 ```typescript
+import dashboardRouter from './routes/dashboard';
+
+// Dashboard API — dành cho Kitchen Frontend
+app.use('/api', dashboardRouter);
+```
+
+### Kiểm tra API
+
+Khởi động backend và test thử:
+
+```bash
+# Lấy danh sách đơn
+curl http://localhost:3000/api/orders
+
+# Đổi trạng thái đơn
+curl -X PATCH http://localhost:3000/api/orders/1/status \
+  -H "Content-Type: application/json" \
+  -d '{"status": "COOKING"}'
+```
+
+---
+
+## 📊 Giai Đoạn 4B: Xây Dựng Kitchen Dashboard UI (Tuần 6-7)
+
+Frontend **không cần Prisma, không cần DATABASE_URL**. Chỉ cần biết URL của Backend.
+
+### Cấu trúc Frontend
+
+```text
+frontend/
+├── app/
+│   ├── page.tsx                # Kitchen Dashboard (UI chính)
+│   └── layout.tsx
+└── components/
+    └── OrderCard.tsx           # Component mỗi ticket đơn hàng
+```
+
+### Setup biến môi trường Frontend
+
+Tạo file `frontend/.env.local`:
+
+```env
+NEXT_PUBLIC_BACKEND_URL=http://localhost:3000
+```
+
+> [!NOTE]
+> Prefix `NEXT_PUBLIC_` là bắt buộc để Next.js expose biến này ra phía client (browser). Không cần `DATABASE_URL` hay `TELEGRAM_BOT_TOKEN` ở frontend.
+
+### Code Frontend
+
+**`frontend/components/OrderCard.tsx`:**
+```tsx
 'use client';
-import { useState } from 'react';
 
 interface OrderCardProps {
   order: any;
-  onStatusChange: (orderId: number, status: string) => void;
+  backendUrl: string;
+  onStatusChange: () => void;
 }
 
-export default function OrderCard({ order, onStatusChange }: OrderCardProps) {
+export default function OrderCard({ order, backendUrl, onStatusChange }: OrderCardProps) {
+  const updateStatus = async (status: string) => {
+    await fetch(`${backendUrl}/api/orders/${order.id}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status })
+    });
+    onStatusChange(); // Trigger refresh
+  };
+
   return (
     <div className="bg-white border rounded-xl p-4 shadow-sm">
       <div className="flex justify-between items-start mb-3">
         <span className="font-bold text-lg">#{order.id}</span>
         <span className="text-sm text-gray-500">{order.user?.name || 'Khách vãng lai'}</span>
       </div>
-
       <ul className="space-y-1 mb-3">
         {order.items.map((item: any) => (
           <li key={item.id} className="text-sm">
@@ -214,24 +203,22 @@ export default function OrderCard({ order, onStatusChange }: OrderCardProps) {
           </li>
         ))}
       </ul>
-
       {order.note && (
         <p className="text-xs text-gray-400 italic mb-3">Ghi chú: {order.note}</p>
       )}
-
       <div className="flex gap-2">
         {order.status === 'PENDING' && (
           <button
-            onClick={() => onStatusChange(order.id, 'COOKING')}
-            className="flex-1 bg-yellow-400 text-white rounded-lg py-1 text-sm font-semibold"
+            onClick={() => updateStatus('COOKING')}
+            className="flex-1 bg-yellow-400 text-white rounded-lg py-2 text-sm font-semibold"
           >
-            Bắt đầu pha
+            🔥 Bắt đầu pha
           </button>
         )}
         {order.status === 'COOKING' && (
           <button
-            onClick={() => onStatusChange(order.id, 'DONE')}
-            className="flex-1 bg-green-500 text-white rounded-lg py-1 text-sm font-semibold"
+            onClick={() => updateStatus('DONE')}
+            className="flex-1 bg-green-500 text-white rounded-lg py-2 text-sm font-semibold"
           >
             ✅ Xong rồi!
           </button>
@@ -242,43 +229,23 @@ export default function OrderCard({ order, onStatusChange }: OrderCardProps) {
 }
 ```
 
----
-
-## 🔔 Giai Đoạn 4B: Realtime & Thông Báo Khách (Tuần 7)
-
-**Mục tiêu:** Dashboard tự cập nhật khi có đơn mới. Khi xong đơn, Telegram bot tự nhắn khách.
-
-### Realtime Polling đơn giản (Không cần WebSocket)
-
-Trong `dashboard/app/page.tsx`, dùng `setInterval` để tự fetch lại mỗi 5 giây:
-
-```typescript
+**`frontend/app/page.tsx`:**
+```tsx
 'use client';
 import { useEffect, useState } from 'react';
 import OrderCard from '@/components/OrderCard';
 
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+
 export default function KitchenPage() {
   const [orders, setOrders] = useState<any[]>([]);
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
   const fetchOrders = async () => {
-    const res = await fetch('/api/orders');
+    const res = await fetch(`${BACKEND_URL}/api/orders`);
     const data = await res.json();
     setOrders(data);
-  };
-
-  const handleStatusChange = async (orderId: number, status: string) => {
-    await fetch('/api/orders', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderId, status })
-    });
-
-    // Nếu status là DONE -> Gọi API webhook để bot nhắn khách
-    if (status === 'DONE') {
-      await fetch(`/api/notify?orderId=${orderId}`);
-    }
-
-    fetchOrders(); // Refresh lại UI
+    setLastUpdate(new Date());
   };
 
   useEffect(() => {
@@ -292,18 +259,32 @@ export default function KitchenPage() {
 
   return (
     <main className="min-h-screen bg-gray-50 p-6">
-      <h1 className="text-2xl font-bold mb-6">🧋 Kitchen Dashboard</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">🧋 Kitchen Dashboard</h1>
+        <span className="text-xs text-gray-400">
+          Cập nhật lúc: {lastUpdate.toLocaleTimeString('vi-VN')}
+        </span>
+      </div>
       <div className="grid grid-cols-2 gap-6">
         <section>
-          <h2 className="text-lg font-semibold mb-3 text-red-500">🔴 Chờ pha ({pending.length})</h2>
+          <h2 className="text-lg font-semibold mb-3 text-red-500">
+            🔴 Chờ pha ({pending.length})
+          </h2>
           <div className="space-y-3">
-            {pending.map(o => <OrderCard key={o.id} order={o} onStatusChange={handleStatusChange} />)}
+            {pending.map(o => (
+              <OrderCard key={o.id} order={o} backendUrl={BACKEND_URL} onStatusChange={fetchOrders} />
+            ))}
+            {pending.length === 0 && <p className="text-sm text-gray-400 italic">Chưa có đơn mới</p>}
           </div>
         </section>
         <section>
-          <h2 className="text-lg font-semibold mb-3 text-yellow-500">🟡 Đang làm ({cooking.length})</h2>
+          <h2 className="text-lg font-semibold mb-3 text-yellow-500">
+            🟡 Đang làm ({cooking.length})
+          </h2>
           <div className="space-y-3">
-            {cooking.map(o => <OrderCard key={o.id} order={o} onStatusChange={handleStatusChange} />)}
+            {cooking.map(o => (
+              <OrderCard key={o.id} order={o} backendUrl={BACKEND_URL} onStatusChange={fetchOrders} />
+            ))}
           </div>
         </section>
       </div>
@@ -312,64 +293,47 @@ export default function KitchenPage() {
 }
 ```
 
-### Thông báo khách qua Telegram khi đơn xong
+### Chạy thử local
 
-Tạo `dashboard/app/api/notify/route.ts`:
+```bash
+# Terminal 1: Backend (port 3000)
+npm run backend:dev
 
-```typescript
-import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient({ /* adapter */ });
-
-export async function GET(req: NextRequest) {
-    const orderId = Number(req.nextUrl.searchParams.get('orderId'));
-    
-    // Lấy thông tin đơn + user
-    const order = await prisma.order.findUnique({
-        where: { id: orderId },
-        include: { user: true }
-    });
-
-    if (!order || !order.user) {
-        return NextResponse.json({ error: 'Order not found' }, { status: 404 });
-    }
-
-    // Gửi tin nhắn Telegram
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    const chatId = order.user.externalId;
-    const message = `✅ Đơn hàng #${orderId} của bạn đã sẵn sàng! Mời bạn đến lấy đồ nhé ☕`;
-
-    await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: chatId, text: message })
-    });
-
-    return NextResponse.json({ success: true });
-}
+# Terminal 2: Frontend (port 3001)
+npm run frontend:dev
 ```
+
+Mở trình duyệt tại `http://localhost:3001` và kiểm tra đơn hàng từ Database hiển thị đúng.
 
 ---
 
 ## 🚀 Giai Đoạn 4C: Deploy & Go Live (Tuần 8-10)
 
-### Deploy Bot Server (Express)
+### Deploy Backend → Railway
 1. Push code lên GitHub.
-2. Tạo project mới trên **Railway** → Connect GitHub → Set environment variables từ `.env` → Deploy.
-3. Sau khi Railway cấp URL, cập nhật `WEBHOOK_URL` và gọi `/setup-webhook` một lần.
+2. Tạo project mới trên **Railway** → Connect GitHub.
+3. Cấu hình **Root Directory = `backend`**.
+4. Set Environment Variables (copy từ `backend/.env`), thêm:
+   - `FRONTEND_URL=https://your-dashboard.vercel.app`
+5. Sau khi Railway cấp URL (ví dụ: `https://milk-tea-bot.railway.app`), cập nhật `WEBHOOK_URL` và restart.
 
-### Deploy Dashboard (Next.js)
-1. Tạo project mới trên **Vercel** → Connect thư mục `dashboard/` trong repo.
-2. Set biến `DATABASE_URL` và `TELEGRAM_BOT_TOKEN` trong Vercel Environment Variables.
-3. Deploy.
+### Deploy Frontend → Vercel
+1. Vào [vercel.com](https://vercel.com) → **New Project** → Import GitHub repo.
+2. Cấu hình **Root Directory = `frontend`**.
+3. Set Environment Variables:
+   - `NEXT_PUBLIC_BACKEND_URL=https://milk-tea-bot.railway.app`
+4. Deploy.
+
+> [!IMPORTANT]
+> Sau khi deploy cả 2, bạn cần cập nhật lại `FRONTEND_URL` trong Railway environment với URL Vercel thực tế để CORS hoạt động đúng, rồi restart Backend.
 
 ### Checklist Go Live
-- [ ] Prisma DB Push lên Neon production
-- [ ] Chạy seed script một lần cuối: `npm run seed`
-- [ ] Test toàn bộ luồng: Chat → Thêm giỏ → Chốt đơn → Dashboard hiện đơn → Bấm Xong → Telegram báo khách
-- [ ] Đảm bảo `npm run dev` của Bot Server đang chạy liên tục (Railway giữ process)
+- [ ] `cd backend && npx prisma db push` (push schema lên production DB)
+- [ ] `npm run backend:seed` (từ thư mục root)
+- [ ] Cập nhật `FRONTEND_URL` trong Railway = URL Vercel
+- [ ] Cập nhật `NEXT_PUBLIC_BACKEND_URL` trong Vercel = URL Railway
+- [ ] Test toàn bộ luồng: Chat bot → Thêm giỏ → Chốt đơn → Dashboard hiện đơn → Bấm Xong → Telegram báo khách
 
 ---
 
-> **Lưu ý:** Vì chat history đang lưu trong RAM (`chatSessions` Map), mỗi khi Bot Server restart thì lịch sử chat của tất cả user sẽ bị reset. Nếu muốn giữ nguyên lịch sử, bạn cần serialize history vào Redis — đây là task tối ưu có thể làm sau khi Go Live.
+> **Lưu ý kỹ thuật:** Chat history đang lưu trong RAM (`chatSessions` Map). Mỗi khi Bot Server restart thì lịch sử chat sẽ bị reset. Đây là hành vi chấp nhận được cho MVP. Cải thiện bằng cách serialize history vào Redis — task V2 sau Go Live.
