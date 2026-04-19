@@ -8,6 +8,7 @@ const redis = new Redis({
 
 export interface CartItem {
     id: string;
+    productId: string; 
     productName: string;
     size: 'M' | 'L';
     toppings: string[];

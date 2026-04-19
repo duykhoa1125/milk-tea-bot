@@ -6,6 +6,10 @@ export const addToCartDeclaration: FunctionDeclaration = {
     parameters: {
         type: SchemaType.OBJECT,
         properties: {
+            productId: {
+                type: SchemaType.STRING,
+                description: "Mã ID của món nước dựa theo menu (ví dụ: TS01, TTG01)"
+            },
             productName: {
                 type: SchemaType.STRING,
                 description: "Tên món nước uống khách muốn đặt (phải dựa theo menu)"
@@ -28,7 +32,7 @@ export const addToCartDeclaration: FunctionDeclaration = {
                 description: "Số lượng ly"
             }
         },
-        required: ["productName", "size", "toppings", "quantity", "note"]
+        required: ["productId", "productName", "size", "toppings", "quantity", "note"]
     }
 };
 
@@ -40,6 +44,18 @@ export const viewCartDeclaration: FunctionDeclaration = {
         type: SchemaType.OBJECT,
         properties: {
             action: { type: SchemaType.STRING, description: "Cứ truyền chữ 'view'" }
+        }
+    }
+};
+
+//Khi khách muốn chốt đơn, Tool trên AI sẽ được gọi thông qua function sau. Tool này đẩy giỏ hàng từ Upstash Redis vào PostgreSQL.
+export const checkoutCartDeclaration: FunctionDeclaration = {
+    name: "checkout_cart",
+    description: "Gọi khi người dùng nói 'chốt đơn', 'thanh toán', 'tính tiền'.",
+    parameters: {
+        type: SchemaType.OBJECT,
+        properties: {
+            note: { type: SchemaType.STRING, description: "Ghi chú chung do khách yêu cầu cho cả đơn lấy nĩa, không lấy biên lai (nếu có)" }
         }
     }
 };
