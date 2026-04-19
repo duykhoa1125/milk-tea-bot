@@ -1,0 +1,74 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ProductType {
+  DRINK
+  TOPPING
+}
+
+enum OrderStatus {
+  PENDING
+  COOKING
+  DONE
+  CANCELLED
+}
+
+enum Platform {
+  TELEGRAM
+  ZALO
+}
+
+model User {
+  id         Int      @id @default(autoincrement())
+  externalId String   @unique        // Telegram chat_id hoặc Zalo user_id
+  platform   Platform @default(TELEGRAM)
+  name       String?
+  orders     Order[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Product {
+  id          String      @id         // TS01, TOP01...
+  category    String
+  name        String
+  description String?
+  priceM      Int?                    // null nếu không có size M (topping chỉ có 1 giá)
+  priceL      Int?                    // null nếu không có size L
+  priceFixed  Int?                    // Dùng cho Topping (giá cố định không phân size)
+  available   Boolean     @default(true)
+  type        ProductType @default(DRINK)
+  orderItems  OrderItem[]
+}
+
+model Order {
+  id         Int         @id @default(autoincrement())
+  userId     Int
+  user       User        @relation(fields: [userId], references: [id])
+  totalPrice Int
+  status     OrderStatus @default(PENDING)
+  note       String?                 // Ghi chú chung của đơn (không phải từng món)
+  items      OrderItem[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt  // Tự cập nhật khi status thay đổi
+}
+
+model OrderItem {
+  id        Int     @id @default(autoincrement())
+  orderId   Int
+  order     Order   @relation(fields: [orderId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  size      String? // null nếu là topping
+  quantity  Int     @default(1)
+  unitPrice Int                      // Giá tại thời điểm đặt (tránh bị ảnh hưởng khi menu đổi giá)
+  toppings  Json    @default("[]")   // Dùng kiểu JSON native 
+  note      String?
+}

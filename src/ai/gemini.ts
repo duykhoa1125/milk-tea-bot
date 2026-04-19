@@ -1,8 +1,9 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { config } from "../config/env";
 import { MENU_DATA, SYSTEM_INSTRUCTION } from "./prompts";
-import { addToCartDeclaration, viewCartDeclaration } from "./tools";
+import { addToCartDeclaration, viewCartDeclaration, checkoutCartDeclaration } from "./tools";
 import { addToCart, getCart } from "../services/cart.service";
+import { checkout } from "../services/order.service";
 
 const genAI = new GoogleGenerativeAI(config.GEMINI_API_KEY);
 
@@ -11,7 +12,7 @@ export const chatModel = genAI.getGenerativeModel({
     systemInstruction: SYSTEM_INSTRUCTION + "\n\n" + MENU_DATA,
     tools: [
         {
-            functionDeclarations: [addToCartDeclaration, viewCartDeclaration]
+            functionDeclarations: [addToCartDeclaration, viewCartDeclaration, checkoutCartDeclaration]
         }
     ]
 });
@@ -23,7 +24,7 @@ const chatSessions = new Map() //Map trong RAM (bộ nhớ của server).
 //     userId2 -> chatSession2
 //   }
 
-export const handleAIFlow = async (userId: number, userPrompt: string): Promise<string> => {
+export const handleAIFlow = async (userId: number, userName: string, userPrompt: string): Promise<string> => {
     try {
         // 1. Tạo session hoặc lấy history cũ
         if (!chatSessions.has(userId)) {
@@ -57,6 +58,7 @@ export const handleAIFlow = async (userId: number, userPrompt: string): Promise<
             // THỰC THI HÀM VỚI REDIS
             if (funcName === 'add_item_to_cart') {
                 await addToCart(userId, {
+                    productId: args.productId,
                     productName: args.productName,
                     size: args.size,
                     toppings: args.toppings || [],
@@ -68,6 +70,12 @@ export const handleAIFlow = async (userId: number, userPrompt: string): Promise<
             else if (funcName === 'view_user_cart') {
                 const currentCart = await getCart(userId);
                 functionResult = { status: "success", cart: currentCart };
+            }
+            else if (funcName === 'checkout_cart') {
+                const result = await checkout(String(userId), userName, args.note);
+                functionResult = result.error
+                    ? { status: "error", message: result.error }
+                    : { status: "success", orderId: result.orderId, totalPrice: result.totalPrice, message: "Đơn hàng đã được chốt!" };
             }
 
             // GỬI KẾT QUẢ CỦA HÀM NGƯỢC XUỐNG CHO AI 

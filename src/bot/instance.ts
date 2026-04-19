@@ -12,11 +12,12 @@ bot.command("menu", (ctx) => ctx.reply("Đây là menu của chúng tôi: Trà S
 //handle all text messages
 bot.on("message:text", async (ctx) => {
     const userId = ctx.from.id;
+    const userName = ctx.from.first_name || 'Khách';
     const userText = ctx.message.text;
 
     await ctx.replyWithChatAction("typing");
 
-    const replyText = await handleAIFlow(userId, userText);
+    const replyText = await handleAIFlow(userId, userName, userText);
 
     await ctx.reply(replyText);
 });
