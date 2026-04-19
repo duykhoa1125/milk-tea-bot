@@ -9,7 +9,7 @@ const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
 
 const formatPrice = (price: number | null | undefined) => {
   if (price == null) return null;
-  return `${price}k`;
+  return `${Math.round(price / 1000)}k`;
 };
 
 const mapProductToLine = (item: {
@@ -40,6 +40,53 @@ const mapProductToLine = (item: {
   }
 
   return `- ${item.id}: ${item.name}`;
+};
+
+const mapProductToUserLine = (item: {
+  name: string;
+  priceM: number | null;
+  priceL: number | null;
+  priceFixed: number | null;
+}) => {
+  const sizeM = formatPrice(item.priceM);
+  const sizeL = formatPrice(item.priceL);
+  const fixed = formatPrice(item.priceFixed);
+
+  if (fixed) {
+    return `${item.name} (${fixed})`;
+  }
+
+  if (sizeM && sizeL) {
+    return `${item.name} (${sizeM}/${sizeL})`;
+  }
+
+  if (sizeM) {
+    return `${item.name} (${sizeM})`;
+  }
+
+  if (sizeL) {
+    return `${item.name} (${sizeL})`;
+  }
+
+  return item.name;
+};
+
+const toTwoColumns = (items: string[]) => {
+  if (items.length === 0) return ["- Chua co du lieu"];
+
+  const leftWidth = Math.max(
+    ...items.filter((_, i) => i % 2 === 0).map((line) => line.length),
+    20,
+  );
+
+  const rows: string[] = [];
+  for (let i = 0; i < items.length; i += 2) {
+    const left = `• ${items[i]}`;
+    const right = items[i + 1] ? `• ${items[i + 1]}` : "";
+    rows.push(`${left.padEnd(leftWidth + 3)}${right}`.trimEnd());
+  }
+
+  return rows;
 };
 
 export const getMenuPromptText = async () => {
@@ -104,17 +151,17 @@ export const getMenuForUserText = async () => {
 
   const drinks = products
     .filter((p) => p.type === ProductType.DRINK)
-    .map(mapProductToLine);
+    .map(mapProductToUserLine);
   const toppings = products
     .filter((p) => p.type === ProductType.TOPPING)
-    .map(mapProductToLine);
+    .map(mapProductToUserLine);
 
-  const lines: string[] = ["Menu hien tai:"];
-  lines.push("Do uong:");
-  lines.push(...(drinks.length > 0 ? drinks : ["- Chua co du lieu"]));
+  const lines: string[] = ["MENU HIEN TAI", ""];
+  lines.push("DO UONG (M/L):");
+  lines.push(...toTwoColumns(drinks));
   lines.push("");
   lines.push("Topping:");
-  lines.push(...(toppings.length > 0 ? toppings : ["- Chua co du lieu"]));
+  lines.push(...toTwoColumns(toppings));
 
   return lines.join("\n");
 };
