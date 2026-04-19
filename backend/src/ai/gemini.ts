@@ -13,7 +13,7 @@ import { getMenuPromptText } from "../services/menu.service";
 const genAI = new GoogleGenerativeAI(config.GEMINI_API_KEY);
 
 export const chatModel = genAI.getGenerativeModel({
-  model: "gemini-3-flash-preview",
+  model: config.GEMINI_MODEL,
   systemInstruction: SYSTEM_INSTRUCTION,
   tools: [
     {
@@ -96,11 +96,11 @@ export const handleAIFlow = async (
         functionResult = result.error
           ? { status: "error", message: result.error }
           : {
-              status: "success",
-              orderId: result.orderId,
-              totalPrice: result.totalPrice,
-              message: "Đơn hàng đã được chốt!",
-            };
+            status: "success",
+            orderId: result.orderId,
+            totalPrice: result.totalPrice,
+            message: "Đơn hàng đã được chốt!",
+          };
       }
 
       // GỬI KẾT QUẢ CỦA HÀM NGƯỢC XUỐNG CHO AI

@@ -1,26 +1,56 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fdfaf3; /* Warm Cream */
+  --foreground: #2d241e; /* Espresso Brown */
+  --menu-card: #ffffff;
+  --accent: #5d4037; /* Coffee Accent */
+  --matcha: #4caf50;
+  --amber: #ffa000;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-accent: var(--accent);
+  --color-menu: var(--menu-card);
+  
   --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-serif: var(--font-serif);
+  
+  --shadow-menu: 0 4px 20px -2px rgba(45, 36, 30, 0.05);
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  background-image: radial-gradient(#dcd4cb 0.5px, transparent 0.5px);
+  background-size: 24px 24px;
+  background-attachment: fixed;
 }
+
+.menu-ticket {
+  background: var(--menu-card);
+  border-radius: 4px;
+  box-shadow: var(--shadow-menu);
+  position: relative;
+  border: 1px solid #eee;
+}
+
+.menu-ticket::after {
+  content: "";
+  position: absolute;
+  bottom: -5px;
+  left: 0;
+  width: 100%;
+  height: 10px;
+  background-image: linear-gradient(135deg, white 25%, transparent 25%), 
+                    linear-gradient(225deg, white 25%, transparent 25%);
+  background-position: bottom left;
+  background-size: 10px 10px;
+  background-repeat: repeat-x;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,0.05));
+}
+
+
