@@ -103,10 +103,105 @@ const sendMessageWithRetry = async (chat: any, payload: unknown) => {
   }
 };
 
-const CHECKOUT_INTENT_REGEX =
-  /\b(thanh\s*toan|thanh\s*toán|checkout|chot\s*don|chốt\s*đơn|tinh\s*tien|tính\s*tiền)\b/i;
-const ORDER_NOTE_INTENT_REGEX =
-  /\b(note|ghi\s*chu|ghi\s*chú|ghi\s*lại|dặn|nhắn)\b/i;
+const QUICK_CHECKOUT_INTENT_REGEX =
+  /\b(thanh\s*toan|checkout|chot\s*don|tinh\s*tien|tra\s*tien|xac\s*nhan\s*don)\b/i;
+const QUICK_CART_EDIT_INTENT_REGEX =
+  /\b(them|bo|doi|sua|giam|tang|xoa|replace|change|remove|update|chinh\s*sua\s*gio)\b/i;
+const QUICK_ORDER_NOTE_INTENT_REGEX =
+  /\b(note|ghi\s*chu|ghi\s*lai|dan|nhan)\b/i;
+
+const INTENT_KEYWORD_MAP = {
+  checkout: [
+    "thanh toán",
+    "checkout",
+    "chốt đơn",
+    "tính tiền",
+    "trả tiền",
+    "xác nhận đơn",
+    "lên đơn",
+  ],
+  cartEdit: [
+    "thêm",
+    "bỏ",
+    "đổi",
+    "sửa",
+    "giảm",
+    "tăng",
+    "xóa",
+    "chỉnh sửa giỏ",
+    "cập nhật giỏ",
+    "replace",
+    "change",
+    "remove",
+    "update",
+  ],
+  orderNote: [
+    "note",
+    "ghi chú",
+    "ghi lại",
+    "dặn",
+    "nhắn",
+    "lưu ý",
+    "yêu cầu đặc biệt",
+  ],
+} as const;
+
+type IntentSignals = {
+  normalizedPrompt: string;
+  hasCheckoutIntent: boolean;
+  hasCartEditIntent: boolean;
+  hasOrderNoteIntent: boolean;
+};
+
+const normalizeVietnameseText = (input: string) =>
+  input
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[đ]/g, "d")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const NORMALIZED_INTENT_KEYWORD_MAP = {
+  checkout: INTENT_KEYWORD_MAP.checkout.map(normalizeVietnameseText),
+  cartEdit: INTENT_KEYWORD_MAP.cartEdit.map(normalizeVietnameseText),
+  orderNote: INTENT_KEYWORD_MAP.orderNote.map(normalizeVietnameseText),
+} as const;
+
+const getKeywordHitCount = (
+  normalizedPrompt: string,
+  keywords: readonly string[],
+) => keywords.filter((keyword) => normalizedPrompt.includes(keyword)).length;
+
+const detectIntentSignals = (userPrompt: string): IntentSignals => {
+  const normalizedPrompt = normalizeVietnameseText(userPrompt);
+  const checkoutKeywordHits = getKeywordHitCount(
+    normalizedPrompt,
+    NORMALIZED_INTENT_KEYWORD_MAP.checkout,
+  );
+  const cartEditKeywordHits = getKeywordHitCount(
+    normalizedPrompt,
+    NORMALIZED_INTENT_KEYWORD_MAP.cartEdit,
+  );
+  const orderNoteKeywordHits = getKeywordHitCount(
+    normalizedPrompt,
+    NORMALIZED_INTENT_KEYWORD_MAP.orderNote,
+  );
+
+  return {
+    normalizedPrompt,
+    hasCheckoutIntent:
+      QUICK_CHECKOUT_INTENT_REGEX.test(normalizedPrompt) ||
+      checkoutKeywordHits > 0,
+    hasCartEditIntent:
+      QUICK_CART_EDIT_INTENT_REGEX.test(normalizedPrompt) ||
+      cartEditKeywordHits > 0,
+    hasOrderNoteIntent:
+      QUICK_ORDER_NOTE_INTENT_REGEX.test(normalizedPrompt) ||
+      orderNoteKeywordHits > 0,
+  };
+};
 
 const PAYOS_LINK_REGEX = /https?:\/\/pay\.payos\.vn\/\S+/i;
 
@@ -194,13 +289,18 @@ export const handleAIFlow = async (
   userPrompt: string,
 ): Promise<string> => {
   try {
+    const intentSignals = detectIntentSignals(userPrompt);
     const menuContext = await getMenuPromptText();
+    const cartEditGuidance =
+      intentSignals.hasCartEditIntent && !intentSignals.hasCheckoutIntent
+        ? "\n\nLưu ý quan trọng: đây là yêu cầu chỉnh giỏ. Nếu trước đó đã có link thanh toán trong cuộc trò chuyện nhưng chưa có xác nhận thanh toán thành công, vẫn phải chấp nhận thay đổi, cập nhật giỏ hàng và báo rằng link cũ không còn hiệu lực. Không được từ chối chỉ vì đã gửi link thanh toán trước đó."
+        : "";
 
     // 1. Tạo session hoặc lấy history cũ
     const chat = getOrCreateSession(userId);
 
     // 2. Gửi text cho Gemini
-    const promptWithMenu = `${menuContext}\n\nTin nhan khach hang: ${userPrompt}`;
+    const promptWithMenu = `${menuContext}${cartEditGuidance}\n\nNormalized intent hint: checkout=${intentSignals.hasCheckoutIntent}; cart_edit=${intentSignals.hasCartEditIntent}; order_note=${intentSignals.hasOrderNoteIntent}.\nTin nhắn khách hàng: ${userPrompt}`;
     let response = await sendMessageWithRetry(chat, promptWithMenu);
     let aiMessage = response.response;
     const executedCalls = new Set<string>();
@@ -261,7 +361,7 @@ export const handleAIFlow = async (
           }
           functionResult = {
             status: "success",
-            message: `Da bo ${result.removedCount} mon khoi gio.`,
+            message: `Đã bỏ ${result.removedCount} món khỏi giỏ.`,
             cart: result.cart,
             paymentLinkInvalidated: result.removedCount > 0,
           };
@@ -275,7 +375,7 @@ export const handleAIFlow = async (
           }
           functionResult = {
             status: "success",
-            message: `Da giu lai ${result.keptCount} mon va bo ${result.removedCount} mon.`,
+            message: `Đã giữ lại ${result.keptCount} món và bỏ ${result.removedCount} món.`,
             cart: result.cart,
             paymentLinkInvalidated: result.removedCount > 0,
           };
@@ -292,7 +392,7 @@ export const handleAIFlow = async (
           }
           functionResult = {
             status: "success",
-            message: `Da cap nhat ${result.updatedCount} mon trong gio.`,
+            message: `Đã cập nhật ${result.updatedCount} món trong giỏ.`,
             cart: result.cart,
             paymentLinkInvalidated: result.updatedCount > 0,
           };
@@ -312,8 +412,8 @@ export const handleAIFlow = async (
           functionResult = {
             status: "success",
             message: savedNote
-              ? `Da luu ghi chu chung cho toan don: ${savedNote}`
-              : "Da xoa ghi chu chung cua toan don.",
+              ? `Đã lưu ghi chú chung cho toàn đơn: ${savedNote}`
+              : "Đã xóa ghi chú chung của toàn đơn.",
             note: savedNote,
             paymentLinkInvalidated: savedNote.length > 0,
           };
@@ -322,19 +422,18 @@ export const handleAIFlow = async (
           await invalidatePendingPaymentOrders(String(userId));
           functionResult = {
             status: "success",
-            message: "Da xoa toan bo gio hang.",
+            message: "Đã xóa toàn bộ giỏ hàng.",
             cart: [],
             paymentLinkInvalidated: true,
           };
         } else {
           functionResult = {
             status: "error",
-            message: "Khong hieu yeu cau chinh sua gio hang.",
+            message: "Không hiểu yêu cầu chỉnh sửa giỏ hàng.",
           };
         }
       } else if (funcName === "checkout_cart") {
-        const hasCheckoutIntent = CHECKOUT_INTENT_REGEX.test(userPrompt);
-        const hasOrderNoteIntent = ORDER_NOTE_INTENT_REGEX.test(userPrompt);
+        const { hasCheckoutIntent, hasOrderNoteIntent } = intentSignals;
 
         if (hasOrderNoteIntent && !hasCheckoutIntent) {
           const orderNote =
@@ -350,8 +449,8 @@ export const handleAIFlow = async (
             note: savedNote,
             paymentLinkInvalidated: savedNote.length > 0,
             message: savedNote
-              ? `Da luu ghi chu chung cho toan don: ${savedNote}`
-              : "Da xoa ghi chu chung cua toan don.",
+              ? `Đã lưu ghi chú chung cho toàn đơn: ${savedNote}`
+              : "Đã xóa ghi chú chung của toàn đơn.",
           };
 
           response = await sendMessageWithRetry(chat, [
@@ -420,10 +519,7 @@ export const handleAIFlow = async (
     // KHI AI TRẢ LỜI NGÔN NGỮ TỰ NHIÊN (TEXT)
     const finalText = aiMessage.text();
 
-    if (
-      PAYOS_LINK_REGEX.test(finalText) &&
-      !CHECKOUT_INTENT_REGEX.test(userPrompt)
-    ) {
+    if (PAYOS_LINK_REGEX.test(finalText) && !intentSignals.hasCheckoutIntent) {
       return "Dạ em đã cập nhật giỏ hàng theo yêu cầu. Link thanh toán cũ không còn hiệu lực, khi anh/chị muốn trả tiền thì nhắn 'thanh toán' để em tạo link mới đúng với giỏ hiện tại nhé.";
     }
 

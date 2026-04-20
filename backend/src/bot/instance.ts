@@ -29,7 +29,7 @@ bot.command("menu", async (ctx) => {
   } catch (error) {
     console.error("Menu command error:", error);
     await ctx.reply(
-      "Xin loi, hien tai khong the tai menu. Vui long thu lai sau.",
+      "Xin lỗi, hiện tại không thể tải menu. Vui lòng thử lại sau.",
     );
   }
 });

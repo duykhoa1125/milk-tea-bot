@@ -67,7 +67,7 @@ const mapProductToUserLine = (item: {
 };
 
 const toTwoColumns = (items: string[]) => {
-  if (items.length === 0) return ["- Chua co du lieu"];
+  if (items.length === 0) return ["- Chưa có dữ liệu"];
 
   const leftWidth = Math.max(
     ...items.filter((_, i) => i % 2 === 0).map((line) => line.length),
@@ -108,11 +108,11 @@ export const getMenuPromptText = async () => {
     .filter((p) => !p.available)
     .map((p) => `- ${p.id}: ${p.name}`);
 
-  const lines: string[] = ["--- MENU HIEN TAI TU DATABASE ---"];
+  const lines: string[] = ["--- MENU HIỆN TẠI TỪ DATABASE ---"];
 
-  lines.push("DO UONG:");
+  lines.push("ĐỒ UỐNG:");
   lines.push(
-    ...(availableDrinks.length > 0 ? availableDrinks : ["- Chua co du lieu"]),
+    ...(availableDrinks.length > 0 ? availableDrinks : ["- Chưa có dữ liệu"]),
   );
   lines.push("");
 
@@ -120,12 +120,12 @@ export const getMenuPromptText = async () => {
   lines.push(
     ...(availableToppings.length > 0
       ? availableToppings
-      : ["- Chua co du lieu"]),
+      : ["- Chưa có dữ liệu"]),
   );
   lines.push("");
 
-  lines.push("MON TAM HET:");
-  lines.push(...(unavailable.length > 0 ? unavailable : ["- Khong co"]));
+  lines.push("MÓN TẠM HẾT:");
+  lines.push(...(unavailable.length > 0 ? unavailable : ["- Không có"]));
 
   return lines.join("\n");
 };
@@ -151,8 +151,8 @@ export const getMenuForUserText = async () => {
     .filter((p) => p.type === ProductType.TOPPING)
     .map(mapProductToUserLine);
 
-  const lines: string[] = ["MENU HIEN TAI", ""];
-  lines.push("DO UONG (M/L):");
+  const lines: string[] = ["MENU HIỆN TẠI", ""];
+  lines.push("ĐỒ UỐNG (M/L):");
   lines.push(...toTwoColumns(drinks));
   lines.push("");
   lines.push("Topping:");

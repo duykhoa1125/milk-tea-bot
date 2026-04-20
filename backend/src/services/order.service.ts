@@ -102,7 +102,7 @@ export const checkout = async (
 
     return {
       error:
-        "He thong dang xu ly thanh toan cho yeu cau nay. Vui long doi vai giay va thu lai.",
+        "Hệ thống đang xử lý thanh toán cho yêu cầu này. Vui lòng đợi vài giây và thử lại.",
     };
   }
 

@@ -62,14 +62,14 @@ export const viewCartDeclaration: FunctionDeclaration = {
 export const editCartDeclaration: FunctionDeclaration = {
   name: "edit_user_cart",
   description:
-    "Goi khi nguoi dung muon bo mon, giu lai mot so mon, doi note (it da nhieu duong), doi note chung cho toan don, doi topping, doi so luong hoac xoa het gio hang.",
+    "Gọi khi người dùng muốn bỏ món, giữ lại một số món, đổi note (ít đá nhiều đường), đổi note chung cho toàn đơn, đổi topping, đổi số lượng hoặc xóa hết giỏ hàng.",
   parameters: {
     type: SchemaType.OBJECT,
     properties: {
       action: {
         type: SchemaType.STRING,
         description:
-          "remove | keep_only | update | set_order_note | clear. remove: bo mon theo selector. keep_only: chi giu cac mon trong keepSelectors. update: cap nhat mon theo selector. set_order_note: cap nhat ghi chu chung cho toan don. clear: xoa het gio.",
+          "remove | keep_only | update | set_order_note | clear. remove: bỏ món theo selector. keep_only: chỉ giữ các món trong keepSelectors. update: cập nhật món theo selector. set_order_note: cập nhật ghi chú chung cho toàn đơn. clear: xóa hết giỏ.",
       },
       selector: {
         type: SchemaType.OBJECT,
