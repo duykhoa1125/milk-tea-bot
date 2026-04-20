@@ -109,18 +109,18 @@ export const checkout = async (
       }),
       toppingNames.length > 0
         ? prisma.product.findMany({
-            where: {
-              name: { in: toppingNames },
-              type: ProductType.TOPPING,
-            },
-            select: {
-              name: true,
-              priceFixed: true,
-            },
-          })
+          where: {
+            name: { in: toppingNames },
+            type: ProductType.TOPPING,
+          },
+          select: {
+            name: true,
+            priceFixed: true,
+          },
+        })
         : Promise.resolve(
-            [] as Array<{ name: string; priceFixed: number | null }>,
-          ),
+          [] as Array<{ name: string; priceFixed: number | null }>,
+        ),
     ]);
 
     const productById = new Map(
