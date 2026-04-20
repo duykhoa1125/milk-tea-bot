@@ -1,6 +1,17 @@
 # 🧋 Tiệm Trà Sữa AI - Replica Bot của Mẹ
 
+[![Demo Video](https://img.shields.io/badge/Demo-Video-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/watch?v=gtaLfLT-CCw)
+[![Telegram Bot](https://img.shields.io/badge/Telegram-Bot-blue?style=for-the-badge&logo=telegram)](https://t.me/milkteaorder_bot)
+[![Live Dashboard](https://img.shields.io/badge/Live-Dashboard-green?style=for-the-badge&logo=vercel)](https://milk-tea-bot-frontend.vercel.app/)
+
 Dự án phát triển một "bản sao AI" đóng vai trò là cô chủ tiệm trà sữa. Bot hoạt động trực tiếp qua **Telegram**, trò chuyện tự nhiên với khách hàng để tư vấn các loại đồ uống kèm topping, sau đó sinh link thanh toán (via PayOS). Ngay khi khách thanh toán thành công, hệ thống tự động đẩy đơn hàng sang giao diện **Kitchen Dashboard** dành cho nhà bếp chuẩn bị món ăn.
+---
+
+## 🔗 Demo & Trải nghiệm
+
+- **Video Demo**: [YouTube Link](https://www.youtube.com/watch?v=gtaLfLT-CCw)
+- **Telegram Bot**: [@milkteaorder_bot](https://t.me/milkteaorder_bot)
+- **Kitchen Dashboard (Live)**: [milk-tea-bot-frontend.vercel.app](https://milk-tea-bot-frontend.vercel.app/)
 
 ---
 
