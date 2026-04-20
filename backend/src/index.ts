@@ -22,6 +22,11 @@ app.use(
 
 app.use(express.json());
 
+// Simple health check endpoint for cron-job to keep server alive
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
 //telegram transmit webhook to our server
 app.post("/webhook", async (req, res) => {
   const updateId = (req.body as { update_id?: number })?.update_id;
