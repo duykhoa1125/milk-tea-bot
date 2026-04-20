@@ -28,7 +28,7 @@ export const addToCartDeclaration: FunctionDeclaration = {
       note: {
         type: SchemaType.STRING,
         description:
-          "Ghi chú của khách (vd: 'ít đá', 'nhiều đường', 'không ngọt'). Nếu không có thì để trống.",
+          "Ghi chú của khách, phải giữ đầy đủ mọi modifier khách nói ra (vd: 'ít đá, không lấy ống hút', 'ít ngọt, nhiều đá'). Nếu không có thì để trống.",
       },
       quantity: {
         type: SchemaType.INTEGER,
@@ -97,7 +97,8 @@ export const editCartDeclaration: FunctionDeclaration = {
         properties: {
           note: {
             type: SchemaType.STRING,
-            description: "Vi du: it da, nhieu duong, khong da",
+            description:
+              "Ghi chú cần cập nhật cho món. Phải giữ đầy đủ nội dung khách đã nói, có thể là nhiều ý nối bằng dấu phẩy (vd: 'ít đá, không lấy ống hút').",
           },
           toppings: {
             type: SchemaType.ARRAY,
@@ -123,7 +124,7 @@ export const checkoutCartDeclaration: FunctionDeclaration = {
       note: {
         type: SchemaType.STRING,
         description:
-          "Ghi chú chung do khách yêu cầu cho cả đơn lấy nĩa, không lấy biên lai (nếu có)",
+          "Ghi chú chung cho cả đơn. Nếu khách nói nhiều ý thì phải giữ nguyên đủ các ý, không được rút gọn (vd: 'không lấy biên lai, lấy nĩa').",
       },
     },
   },

@@ -1,4 +1,6 @@
-import React from "react";
+"use client";
+
+import React, { useEffect, useState } from "react";
 
 type SuccessPageProps = {
   searchParams?: {
@@ -7,8 +9,47 @@ type SuccessPageProps = {
 };
 
 function SuccessPage({ searchParams }: SuccessPageProps) {
+  const [isPopupOpen, setIsPopupOpen] = useState(true);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setIsPopupOpen(false), 5000);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   return (
     <main className="min-h-screen px-6 py-12 flex items-center justify-center">
+      {isPopupOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="menu-ticket w-full max-w-md overflow-hidden shadow-2xl animate-[popIn_220ms_ease-out]">
+            <div className="bg-linear-to-br from-emerald-500 via-teal-500 to-cyan-600 px-5 py-4 text-white">
+              <p className="text-xs uppercase tracking-[0.35em] opacity-80">
+                Notification
+              </p>
+              <h2 className="mt-2 text-2xl font-serif">
+                Thanh toán thành công
+              </h2>
+            </div>
+
+            <div className="space-y-3 px-5 py-5 text-sm leading-6">
+              <p>
+                Đơn hàng
+                {searchParams?.orderCode
+                  ? ` #${searchParams.orderCode}`
+                  : ""}{" "}
+                đã được ghi nhận và đang đợi bot đồng bộ trạng thái.
+              </p>
+              <button
+                type="button"
+                onClick={() => setIsPopupOpen(false)}
+                className="modern-button modern-button-primary w-full"
+              >
+                Đã hiểu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <section className="menu-ticket w-full max-w-xl overflow-hidden">
         <div className="bg-linear-to-br from-emerald-500 via-teal-500 to-cyan-600 px-6 py-5 text-white">
           <p className="text-sm uppercase tracking-[0.35em] opacity-80">

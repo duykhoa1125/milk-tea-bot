@@ -1,7 +1,10 @@
 import { Bot, webhookCallback } from "grammy";
 import { config } from "./../config/env";
 import { chatModel, handleAIFlow } from "../ai/gemini";
-import { getMenuForUserText } from "../services/menu.service";
+import {
+  getMenuForUserText,
+  getMenuPromptText,
+} from "../services/menu.service";
 
 const MENU_INTENT_REGEX =
   /\b(menu|thuc\s*don|thực\s*đơn|co\s*mon\s*gi|có\s*món\s*gì|ban\s*gi|bán\s*gì)\b/i;
@@ -80,7 +83,11 @@ bot.on("message:photo", async (ctx) => {
   const caption = ctx.message.caption || "What is this drink in the picture?";
 
   try {
-    const result = await chatModel.generateContent([caption, ...imageParts]);
+    const menuContext = await getMenuPromptText();
+    const result = await chatModel.generateContent([
+      `${menuContext}\n\nHãy nhận diện món trong ảnh dựa trên menu ở trên. Chỉ xác nhận "có trong menu" nếu khớp rõ ràng với một món có sẵn. Nếu ảnh giống một món trong menu nhưng cách gọi của khách khác đi, hãy dùng tên chuẩn của menu. Nếu không chắc, hãy nói đó là món gần nhất trong menu và hỏi lại ngắn gọn.\n\nTin nhắn/caption của khách: ${caption}`,
+      ...imageParts,
+    ]);
     await ctx.reply(result.response.text());
   } catch (error) {
     console.error("AI Photo Error:", error);
