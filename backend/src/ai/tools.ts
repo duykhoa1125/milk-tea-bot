@@ -62,14 +62,14 @@ export const viewCartDeclaration: FunctionDeclaration = {
 export const editCartDeclaration: FunctionDeclaration = {
   name: "edit_user_cart",
   description:
-    "Goi khi nguoi dung muon bo mon, giu lai mot so mon, doi note (it da nhieu duong), doi topping, doi so luong hoac xoa het gio hang.",
+    "Goi khi nguoi dung muon bo mon, giu lai mot so mon, doi note (it da nhieu duong), doi note chung cho toan don, doi topping, doi so luong hoac xoa het gio hang.",
   parameters: {
     type: SchemaType.OBJECT,
     properties: {
       action: {
         type: SchemaType.STRING,
         description:
-          "remove | keep_only | update | clear. remove: bo mon theo selector. keep_only: chi giu cac mon trong keepSelectors. update: cap nhat mon theo selector. clear: xoa het gio.",
+          "remove | keep_only | update | set_order_note | clear. remove: bo mon theo selector. keep_only: chi giu cac mon trong keepSelectors. update: cap nhat mon theo selector. set_order_note: cap nhat ghi chu chung cho toan don. clear: xoa het gio.",
       },
       selector: {
         type: SchemaType.OBJECT,
@@ -98,7 +98,7 @@ export const editCartDeclaration: FunctionDeclaration = {
           note: {
             type: SchemaType.STRING,
             description:
-              "Ghi chú cần cập nhật cho món. Phải giữ đầy đủ nội dung khách đã nói, có thể là nhiều ý nối bằng dấu phẩy (vd: 'ít đá, không lấy ống hút').",
+              "Ghi chú cần cập nhật cho món hoặc ghi chú chung cho toàn đơn. Phải giữ đầy đủ nội dung khách đã nói, có thể là nhiều ý nối bằng dấu phẩy (vd: 'ít đá, không lấy ống hút').",
           },
           toppings: {
             type: SchemaType.ARRAY,
@@ -117,7 +117,7 @@ export const editCartDeclaration: FunctionDeclaration = {
 export const checkoutCartDeclaration: FunctionDeclaration = {
   name: "checkout_cart",
   description:
-    "Gọi khi người dùng nói 'chốt đơn', 'thanh toán', 'tính tiền'. Hàm này sẽ tạo đơn và trả về link thanh toán PayOS để gửi cho khách.",
+    "Gọi khi người dùng thật sự muốn chốt đơn hoặc thanh toán, ví dụ nói 'chốt đơn', 'thanh toán', 'tính tiền'. Không dùng hàm này nếu khách chỉ muốn ghi chú cho toàn đơn. Hàm này sẽ tạo đơn và trả về link thanh toán PayOS để gửi cho khách.",
   parameters: {
     type: SchemaType.OBJECT,
     properties: {

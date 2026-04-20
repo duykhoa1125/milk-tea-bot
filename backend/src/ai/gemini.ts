@@ -11,8 +11,10 @@ import {
   addToCart,
   clearCart,
   getCart,
+  getCartOrderNote,
   keepOnlyCartItems,
   removeCartItems,
+  setCartOrderNote,
   updateCartItems,
   type CartItemSelector,
 } from "../services/cart.service";
@@ -103,6 +105,8 @@ const sendMessageWithRetry = async (chat: any, payload: unknown) => {
 
 const CHECKOUT_INTENT_REGEX =
   /\b(thanh\s*toan|thanh\s*toán|checkout|chot\s*don|chốt\s*đơn|tinh\s*tien|tính\s*tiền)\b/i;
+const ORDER_NOTE_INTENT_REGEX =
+  /\b(note|ghi\s*chu|ghi\s*chú|ghi\s*lại|dặn|nhắn)\b/i;
 
 const PAYOS_LINK_REGEX = /https?:\/\/pay\.payos\.vn\/\S+/i;
 
@@ -292,6 +296,27 @@ export const handleAIFlow = async (
             cart: result.cart,
             paymentLinkInvalidated: result.updatedCount > 0,
           };
+        } else if (action === "set_order_note") {
+          const orderNote =
+            typeof args?.updates?.note === "string"
+              ? args.updates.note
+              : typeof args.note === "string"
+                ? args.note
+                : "";
+          const savedNote = await setCartOrderNote(userId, orderNote);
+
+          if (savedNote) {
+            await invalidatePendingPaymentOrders(String(userId));
+          }
+
+          functionResult = {
+            status: "success",
+            message: savedNote
+              ? `Da luu ghi chu chung cho toan don: ${savedNote}`
+              : "Da xoa ghi chu chung cua toan don.",
+            note: savedNote,
+            paymentLinkInvalidated: savedNote.length > 0,
+          };
         } else if (action === "clear") {
           await clearCart(userId);
           await invalidatePendingPaymentOrders(String(userId));
@@ -308,7 +333,46 @@ export const handleAIFlow = async (
           };
         }
       } else if (funcName === "checkout_cart") {
-        const result = await checkout(String(userId), userName, args.note);
+        const hasCheckoutIntent = CHECKOUT_INTENT_REGEX.test(userPrompt);
+        const hasOrderNoteIntent = ORDER_NOTE_INTENT_REGEX.test(userPrompt);
+
+        if (hasOrderNoteIntent && !hasCheckoutIntent) {
+          const orderNote =
+            typeof args?.note === "string" ? args.note : userPrompt;
+          const savedNote = await setCartOrderNote(userId, orderNote);
+
+          if (savedNote) {
+            await invalidatePendingPaymentOrders(String(userId));
+          }
+
+          functionResult = {
+            status: "success",
+            note: savedNote,
+            paymentLinkInvalidated: savedNote.length > 0,
+            message: savedNote
+              ? `Da luu ghi chu chung cho toan don: ${savedNote}`
+              : "Da xoa ghi chu chung cua toan don.",
+          };
+
+          response = await sendMessageWithRetry(chat, [
+            {
+              functionResponse: {
+                name: "edit_user_cart",
+                response: functionResult,
+              },
+            },
+          ]);
+
+          aiMessage = response.response;
+          continue;
+        }
+
+        const existingOrderNote = await getCartOrderNote(userId);
+        const result = await checkout(
+          String(userId),
+          userName,
+          args.note || existingOrderNote,
+        );
         const checkoutError =
           "error" in result && typeof result.error === "string"
             ? result.error

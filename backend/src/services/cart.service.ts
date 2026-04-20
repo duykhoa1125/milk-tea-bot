@@ -19,6 +19,7 @@ export interface CartItemSelector {
 }
 
 const CART_TTL_SECONDS = 86400;
+const CART_ORDER_NOTE_TTL_SECONDS = 86400;
 
 const normalizeText = (value: string) => value.trim().toLowerCase();
 
@@ -51,6 +52,14 @@ const matchesSelector = (item: CartItem, selector?: CartItemSelector) => {
 
 const saveCart = async (userId: string | number, cart: CartItem[]) => {
   await redis.set(`cart:${userId}`, cart, { ex: CART_TTL_SECONDS });
+};
+
+const getOrderNoteKey = (userId: string | number) => `cart:note:${userId}`;
+
+const saveOrderNote = async (userId: string | number, note: string) => {
+  await redis.set(getOrderNoteKey(userId), note, {
+    ex: CART_ORDER_NOTE_TTL_SECONDS,
+  });
 };
 
 export const getCart = async (userId: string | number): Promise<CartItem[]> => {
@@ -160,4 +169,27 @@ export const updateCartItems = async (
 // sau khi thanh toan
 export const clearCart = async (userId: string | number) => {
   await redis.del(`cart:${userId}`);
+  await redis.del(getOrderNoteKey(userId));
+};
+
+export const getCartOrderNote = async (
+  userId: string | number,
+): Promise<string> => {
+  const note = await redis.get<string>(getOrderNoteKey(userId));
+  return note || "";
+};
+
+export const setCartOrderNote = async (
+  userId: string | number,
+  note: string,
+) => {
+  const normalizedNote = note.trim();
+
+  if (!normalizedNote) {
+    await redis.del(getOrderNoteKey(userId));
+    return "";
+  }
+
+  await saveOrderNote(userId, normalizedNote);
+  return normalizedNote;
 };
