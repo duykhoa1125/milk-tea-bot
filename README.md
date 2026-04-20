@@ -15,8 +15,8 @@ Dự án phát triển một "bản sao AI" đóng vai trò là cô chủ tiệm
    - Sinh QR Code hoặc link chuyển khoản tự động. 
    - Ghi nhận trạng thái "Đã thanh toán" để báo bếp ngay khi có IPN từ webhook ngân hàng.
 5. **Kitchen Dashboard (Next.js)**:
-   - Một giao diện riêng (Frontend) hiển thị danh sách đơn Order theo thời gian thực (real-time rendering/polling).
-   - Giao diện đẹp mắt, chia layout theo phong cách Cafe Ticket (vé order bếp).
+   - Một giao diện riêng (Frontend) hiển thị danh sách đơn Order theo thời gian thực.
+   - Giao diện đẹp mắt.
 
 ---
 
@@ -59,7 +59,7 @@ milk-tea-bot/
 │   │   ├── app/
 │   │   └── components/
 │   └── package.json
-└── docs/                     # Tài liệu thiết kế luồng dự án (Route, Hướng dẫn ngrok, Cấu trúc UML)
+
 ```
 
 ---
@@ -130,7 +130,12 @@ Giữ máy chủ backend đang chạy, mở một terminal khác:
 ngrok http 5000
 ```
 Tiếp đến, lấy link ngrok (`https://______.ngrok-free.dev`) dán vào biến `WEBHOOK_URL` ở trong `.env` của backend. 
-Gửi 1 cURL Request hoặc dùng Postman gọi vào `POST {{WEBHOOK_URL}}/api/bot/setup` để báo cho Server Telegram biết endpoint của bạn. (Cấu hình Webhook PayOS cũng dùng endpoint tương tự ứng với `/api/payos/webhook`).
+Gửi 1 cURL Request hoặc dùng Postman gọi vào `POST {{WEBHOOK_URL}}/setup-webhook` để báo cho Server Telegram biết endpoint của bạn.
+```bash
+Invoke-WebRequest -Method POST -Uri "WEBHOOK_URL/setup-webhook" -Headers @{ "x-admin-key" = "YOUR_ADMIN_KEY" }
+```
+Cấu hình Webhook PayOS trong cài đặt cua "kenh thanh toán" của PayOS.
+
 
 
 ### Bước 3: Setup Kitchen Dashboard (Frontend)
@@ -152,5 +157,5 @@ Gửi 1 cURL Request hoặc dùng Postman gọi vào `POST {{WEBHOOK_URL}}/api/b
 ## 🧪 Cách tiến hành Testing Demo
 
 - **Bot Đặt Món**: Truy cập vào Telegram Bot, nhấn Bắt đầu (`/start`). Chat bằng tiếng việt, hỏi bot "Menu quán có gì", sau đó thêm món "1 ly olong sữa size M thêm trân châu" vào giỏ.
-- **Thanh toán**: Yêu cầu chốt đơn. Bot sẽ gửi trả một đường link thanh toán của PayOS. Nhấn vào chuyển sang Web, có thể quét thử app Mobile Banking hoặc nếu code ở dev mode, giả lập thanh toán thành công ở webhook.
+- **Thanh toán**: Yêu cầu chốt đơn. Bot sẽ gửi trả một đường link thanh toán của PayOS. Nhấn vào chuyển sang Web, chuyen khoan thanh cong.
 - **Bếp nhận đơn**: Quay sang Browser `http://localhost:3000`, bạn sẽ thấy đơn vừa tạo "POP-UP" xuất hiện trên bảng của bếp với đầy đủ chú thích (Kích cỡ, topping, text tùy ý khách ghi chú thêm dặn dò). Mẹ có thể bắt đầu pha đồ uống!
