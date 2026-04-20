@@ -16,10 +16,10 @@ export default function Sidebar() {
 
   const navItems = [
     { icon: LayoutDashboard, path: "/", label: "Dashboard" },
-    { icon: ClipboardList, path: "/orders", label: "Orders" },
+    // { icon: ClipboardList, path: "/orders", label: "Orders" },
     { icon: History, path: "/history", label: "History" },
-    { icon: MessageSquare, path: "/chat", label: "Messages" },
-    { icon: User, path: "/profile", label: "Profile" },
+    // { icon: MessageSquare, path: "/chat", label: "Messages" },
+    // { icon: User, path: "/profile", label: "Profile" },
   ];
 
   return (
@@ -60,14 +60,14 @@ export default function Sidebar() {
       </nav>
 
       {/* Bottom Actions */}
-      <div className="flex flex-col gap-6 mt-auto">
+      {/* <div className="flex flex-col gap-6 mt-auto">
         <button className="text-secondary hover:text-primary transition-colors p-2">
           <Bell size={24} />
         </button>
         <button className="text-secondary hover:text-rose-500 transition-colors p-2">
           <LogOut size={24} />
         </button>
-      </div>
+      </div> */}
     </div>
   );
 }
