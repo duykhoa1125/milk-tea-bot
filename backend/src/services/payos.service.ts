@@ -34,7 +34,9 @@ export const createPaymentLink = async (input: {
   return payOS.paymentRequests.create(input);
 };
 
-export const verifyPayOSWebhookPayload = async (payload: PayOSWebhookPayload) => {
+export const verifyPayOSWebhookPayload = async (
+  payload: PayOSWebhookPayload,
+) => {
   return payOS.webhooks.verify(payload as never);
 };
 

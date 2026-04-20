@@ -75,7 +75,9 @@ app.post("/payos/webhook", async (req, res) => {
 
     if (Number.isNaN(orderCode)) {
       // Accept unknown validation payloads from provider but skip business processing.
-      res.status(200).json({ success: true, ignored: true, reason: "invalid_order_code" });
+      res
+        .status(200)
+        .json({ success: true, ignored: true, reason: "invalid_order_code" });
       return;
     }
 
@@ -110,7 +112,9 @@ app.post("/payos/webhook", async (req, res) => {
       "message" in error &&
       String(error.message).includes("Không tìm thấy đơn hàng")
     ) {
-      res.status(200).json({ success: true, ignored: true, reason: "order_not_found" });
+      res
+        .status(200)
+        .json({ success: true, ignored: true, reason: "order_not_found" });
       return;
     }
     console.error("PayOS webhook error:", error);

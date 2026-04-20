@@ -59,6 +59,59 @@ export const viewCartDeclaration: FunctionDeclaration = {
   },
 };
 
+export const editCartDeclaration: FunctionDeclaration = {
+  name: "edit_user_cart",
+  description:
+    "Goi khi nguoi dung muon bo mon, giu lai mot so mon, doi note (it da nhieu duong), doi topping, doi so luong hoac xoa het gio hang.",
+  parameters: {
+    type: SchemaType.OBJECT,
+    properties: {
+      action: {
+        type: SchemaType.STRING,
+        description:
+          "remove | keep_only | update | clear. remove: bo mon theo selector. keep_only: chi giu cac mon trong keepSelectors. update: cap nhat mon theo selector. clear: xoa het gio.",
+      },
+      selector: {
+        type: SchemaType.OBJECT,
+        properties: {
+          id: { type: SchemaType.STRING },
+          productId: { type: SchemaType.STRING },
+          productName: { type: SchemaType.STRING },
+          size: { type: SchemaType.STRING },
+        },
+      },
+      keepSelectors: {
+        type: SchemaType.ARRAY,
+        items: {
+          type: SchemaType.OBJECT,
+          properties: {
+            id: { type: SchemaType.STRING },
+            productId: { type: SchemaType.STRING },
+            productName: { type: SchemaType.STRING },
+            size: { type: SchemaType.STRING },
+          },
+        },
+      },
+      updates: {
+        type: SchemaType.OBJECT,
+        properties: {
+          note: {
+            type: SchemaType.STRING,
+            description: "Vi du: it da, nhieu duong, khong da",
+          },
+          toppings: {
+            type: SchemaType.ARRAY,
+            items: { type: SchemaType.STRING },
+          },
+          quantity: { type: SchemaType.INTEGER },
+          size: { type: SchemaType.STRING },
+        },
+      },
+    },
+    required: ["action"],
+  },
+};
+
 //Khi khách muốn chốt đơn, Tool trên AI sẽ được gọi thông qua function sau. Tool này đẩy giỏ hàng từ Upstash Redis vào PostgreSQL.
 export const checkoutCartDeclaration: FunctionDeclaration = {
   name: "checkout_cart",

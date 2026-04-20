@@ -4,9 +4,18 @@ import { SYSTEM_INSTRUCTION } from "./prompts";
 import {
   addToCartDeclaration,
   viewCartDeclaration,
+  editCartDeclaration,
   checkoutCartDeclaration,
 } from "./tools";
-import { addToCart, getCart } from "../services/cart.service";
+import {
+  addToCart,
+  clearCart,
+  getCart,
+  keepOnlyCartItems,
+  removeCartItems,
+  updateCartItems,
+  type CartItemSelector,
+} from "../services/cart.service";
 import { checkout } from "../services/order.service";
 import { getMenuPromptText } from "../services/menu.service";
 
@@ -20,6 +29,7 @@ export const chatModel = genAI.getGenerativeModel({
       functionDeclarations: [
         addToCartDeclaration,
         viewCartDeclaration,
+        editCartDeclaration,
         checkoutCartDeclaration,
       ],
     },
@@ -105,6 +115,53 @@ export const handleAIFlow = async (
       } else if (funcName === "view_user_cart") {
         const currentCart = await getCart(userId);
         functionResult = { status: "success", cart: currentCart };
+      } else if (funcName === "edit_user_cart") {
+        const action = typeof args.action === "string" ? args.action : "";
+        const selector = (args.selector || {}) as CartItemSelector;
+
+        if (action === "remove") {
+          const result = await removeCartItems(userId, selector);
+          functionResult = {
+            status: "success",
+            message: `Da bo ${result.removedCount} mon khoi gio.`,
+            cart: result.cart,
+          };
+        } else if (action === "keep_only") {
+          const keepSelectors = Array.isArray(args.keepSelectors)
+            ? (args.keepSelectors as CartItemSelector[])
+            : [];
+          const result = await keepOnlyCartItems(userId, keepSelectors);
+          functionResult = {
+            status: "success",
+            message: `Da giu lai ${result.keptCount} mon va bo ${result.removedCount} mon.`,
+            cart: result.cart,
+          };
+        } else if (action === "update") {
+          const updates = (args.updates || {}) as {
+            note?: string;
+            toppings?: string[];
+            quantity?: number;
+            size?: "M" | "L";
+          };
+          const result = await updateCartItems(userId, selector, updates);
+          functionResult = {
+            status: "success",
+            message: `Da cap nhat ${result.updatedCount} mon trong gio.`,
+            cart: result.cart,
+          };
+        } else if (action === "clear") {
+          await clearCart(userId);
+          functionResult = {
+            status: "success",
+            message: "Da xoa toan bo gio hang.",
+            cart: [],
+          };
+        } else {
+          functionResult = {
+            status: "error",
+            message: "Khong hieu yeu cau chinh sua gio hang.",
+          };
+        }
       } else if (funcName === "checkout_cart") {
         const result = await checkout(String(userId), userName, args.note);
         const checkoutError =
