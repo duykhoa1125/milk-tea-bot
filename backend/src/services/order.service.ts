@@ -21,6 +21,15 @@ export const invalidatePendingPaymentOrders = async (telegramId: string) => {
   return result.count;
 };
 
+export const getPendingPaymentOrderCount = async (telegramId: string) => {
+  return prisma.order.count({
+    where: {
+      telegramId,
+      status: OrderStatus.PENDING_PAYMENT,
+    },
+  });
+};
+
 const buildPaymentItemName = (
   productName: string,
   size: string,

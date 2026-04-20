@@ -20,6 +20,7 @@ import {
 } from "../services/cart.service";
 import {
   checkout,
+  getPendingPaymentOrderCount,
   invalidatePendingPaymentOrders,
 } from "../services/order.service";
 import { getMenuPromptText } from "../services/menu.service";
@@ -290,10 +291,16 @@ export const handleAIFlow = async (
 ): Promise<string> => {
   try {
     const intentSignals = detectIntentSignals(userPrompt);
+    const pendingPaymentCountBeforeTurn = await getPendingPaymentOrderCount(
+      String(userId),
+    );
+    const hasPendingPaymentBeforeTurn = pendingPaymentCountBeforeTurn > 0;
     const menuContext = await getMenuPromptText();
     const cartEditGuidance =
       intentSignals.hasCartEditIntent && !intentSignals.hasCheckoutIntent
-        ? "\n\nLưu ý quan trọng: đây là yêu cầu chỉnh giỏ. Nếu trước đó đã có link thanh toán trong cuộc trò chuyện nhưng chưa có xác nhận thanh toán thành công, vẫn phải chấp nhận thay đổi, cập nhật giỏ hàng và báo rằng link cũ không còn hiệu lực. Không được từ chối chỉ vì đã gửi link thanh toán trước đó."
+        ? hasPendingPaymentBeforeTurn
+          ? "\n\nLưu ý quan trọng: đây là yêu cầu chỉnh giỏ. Nếu trước đó đã có link thanh toán trong cuộc trò chuyện nhưng chưa có xác nhận thanh toán thành công, vẫn phải chấp nhận thay đổi, cập nhật giỏ hàng và báo rằng link cũ không còn hiệu lực. Không được từ chối chỉ vì đã gửi link thanh toán trước đó."
+          : "\n\nLưu ý quan trọng: đây là yêu cầu chỉnh giỏ. Hãy cập nhật giỏ hàng theo đúng ý khách, không tự nhắc đến link thanh toán cũ nếu chưa có link nào còn hiệu lực."
         : "";
 
     // 1. Tạo session hoặc lấy history cũ
@@ -330,6 +337,7 @@ export const handleAIFlow = async (
       );
 
       let functionResult: any = {};
+      let invalidatedPendingCount = 0;
 
       // THỰC THI HÀM VỚI REDIS
       if (funcName === "add_item_to_cart") {
@@ -341,11 +349,13 @@ export const handleAIFlow = async (
           note: args.note || "",
           quantity: args.quantity,
         });
-        await invalidatePendingPaymentOrders(String(userId));
+        invalidatedPendingCount = await invalidatePendingPaymentOrders(
+          String(userId),
+        );
         functionResult = {
           status: "success",
           message: `Đã thêm ${args.quantity} ly ${args.productName} vào giỏ.`,
-          paymentLinkInvalidated: true,
+          paymentLinkInvalidated: invalidatedPendingCount > 0,
         };
       } else if (funcName === "view_user_cart") {
         const currentCart = await getCart(userId);
@@ -357,13 +367,15 @@ export const handleAIFlow = async (
         if (action === "remove") {
           const result = await removeCartItems(userId, selector);
           if (result.removedCount > 0) {
-            await invalidatePendingPaymentOrders(String(userId));
+            invalidatedPendingCount = await invalidatePendingPaymentOrders(
+              String(userId),
+            );
           }
           functionResult = {
             status: "success",
             message: `Đã bỏ ${result.removedCount} món khỏi giỏ.`,
             cart: result.cart,
-            paymentLinkInvalidated: result.removedCount > 0,
+            paymentLinkInvalidated: invalidatedPendingCount > 0,
           };
         } else if (action === "keep_only") {
           const keepSelectors = Array.isArray(args.keepSelectors)
@@ -371,13 +383,15 @@ export const handleAIFlow = async (
             : [];
           const result = await keepOnlyCartItems(userId, keepSelectors);
           if (result.removedCount > 0) {
-            await invalidatePendingPaymentOrders(String(userId));
+            invalidatedPendingCount = await invalidatePendingPaymentOrders(
+              String(userId),
+            );
           }
           functionResult = {
             status: "success",
             message: `Đã giữ lại ${result.keptCount} món và bỏ ${result.removedCount} món.`,
             cart: result.cart,
-            paymentLinkInvalidated: result.removedCount > 0,
+            paymentLinkInvalidated: invalidatedPendingCount > 0,
           };
         } else if (action === "update") {
           const updates = (args.updates || {}) as {
@@ -388,13 +402,15 @@ export const handleAIFlow = async (
           };
           const result = await updateCartItems(userId, selector, updates);
           if (result.updatedCount > 0) {
-            await invalidatePendingPaymentOrders(String(userId));
+            invalidatedPendingCount = await invalidatePendingPaymentOrders(
+              String(userId),
+            );
           }
           functionResult = {
             status: "success",
             message: `Đã cập nhật ${result.updatedCount} món trong giỏ.`,
             cart: result.cart,
-            paymentLinkInvalidated: result.updatedCount > 0,
+            paymentLinkInvalidated: invalidatedPendingCount > 0,
           };
         } else if (action === "set_order_note") {
           const orderNote =
@@ -406,7 +422,9 @@ export const handleAIFlow = async (
           const savedNote = await setCartOrderNote(userId, orderNote);
 
           if (savedNote) {
-            await invalidatePendingPaymentOrders(String(userId));
+            invalidatedPendingCount = await invalidatePendingPaymentOrders(
+              String(userId),
+            );
           }
 
           functionResult = {
@@ -415,16 +433,18 @@ export const handleAIFlow = async (
               ? `Đã lưu ghi chú chung cho toàn đơn: ${savedNote}`
               : "Đã xóa ghi chú chung của toàn đơn.",
             note: savedNote,
-            paymentLinkInvalidated: savedNote.length > 0,
+            paymentLinkInvalidated: invalidatedPendingCount > 0,
           };
         } else if (action === "clear") {
           await clearCart(userId);
-          await invalidatePendingPaymentOrders(String(userId));
+          invalidatedPendingCount = await invalidatePendingPaymentOrders(
+            String(userId),
+          );
           functionResult = {
             status: "success",
             message: "Đã xóa toàn bộ giỏ hàng.",
             cart: [],
-            paymentLinkInvalidated: true,
+            paymentLinkInvalidated: invalidatedPendingCount > 0,
           };
         } else {
           functionResult = {
@@ -441,13 +461,15 @@ export const handleAIFlow = async (
           const savedNote = await setCartOrderNote(userId, orderNote);
 
           if (savedNote) {
-            await invalidatePendingPaymentOrders(String(userId));
+            invalidatedPendingCount = await invalidatePendingPaymentOrders(
+              String(userId),
+            );
           }
 
           functionResult = {
             status: "success",
             note: savedNote,
-            paymentLinkInvalidated: savedNote.length > 0,
+            paymentLinkInvalidated: invalidatedPendingCount > 0,
             message: savedNote
               ? `Đã lưu ghi chú chung cho toàn đơn: ${savedNote}`
               : "Đã xóa ghi chú chung của toàn đơn.",
@@ -520,7 +542,11 @@ export const handleAIFlow = async (
     const finalText = aiMessage.text();
 
     if (PAYOS_LINK_REGEX.test(finalText) && !intentSignals.hasCheckoutIntent) {
-      return "Dạ em đã cập nhật giỏ hàng theo yêu cầu. Link thanh toán cũ không còn hiệu lực, khi anh/chị muốn trả tiền thì nhắn 'thanh toán' để em tạo link mới đúng với giỏ hiện tại nhé.";
+      if (hasPendingPaymentBeforeTurn) {
+        return "Dạ em đã cập nhật giỏ hàng theo yêu cầu. Link thanh toán cũ không còn hiệu lực, khi anh/chị muốn trả tiền thì nhắn 'thanh toán' để em tạo link mới đúng với giỏ hiện tại nhé.";
+      }
+
+      return "Dạ em đã cập nhật giỏ hàng theo yêu cầu. Khi anh/chị muốn thanh toán thì nhắn 'thanh toán' để em tạo link mới đúng với giỏ hiện tại nhé.";
     }
 
     return finalText;
