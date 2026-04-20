@@ -15,7 +15,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3001",
+    origin: config.FRONTEND_URL,
     methods: ["GET", "PATCH", "POST"],
   }),
 );
@@ -46,11 +46,22 @@ app.post("/webhook", async (req, res) => {
 // Kitchen dashboard API
 app.use("/api", dashboardRouter);
 
-//setup webhook manually
-//run ngrok http 3000
-//copy url from ngrok and paste to WEBHOOK_URL in .env file
-//run npm run dev
-app.get("/setup-webhook", async (req, res) => {
+// setup webhook manually via protected admin endpoint
+app.post("/setup-webhook", async (req, res) => {
+  const adminKey = req.header("x-admin-key") || "";
+
+  if (!config.ADMIN_API_KEY) {
+    res
+      .status(503)
+      .json({ error: "ADMIN_API_KEY chưa được cấu hình trên server" });
+    return;
+  }
+
+  if (adminKey !== config.ADMIN_API_KEY) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+
   try {
     const url = `${config.WEBHOOK_URL}/webhook`;
     await bot.api.setWebhook(url, {

@@ -1,4 +1,5 @@
 import { redis } from "../lib/redis";
+import { randomUUID } from "node:crypto";
 
 export interface CartItem {
   id: string;
@@ -64,7 +65,7 @@ export const addToCart = async (
   const currentCart = await getCart(userId);
   const newItem: CartItem = {
     ...item,
-    id: Date.now().toString(),
+    id: randomUUID(),
   };
   currentCart.push(newItem);
 

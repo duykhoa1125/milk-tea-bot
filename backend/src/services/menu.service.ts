@@ -1,11 +1,6 @@
 import "dotenv/config";
-import { PrismaClient, ProductType } from "@prisma/client";
-import pkg from "pg";
-import { PrismaPg } from "@prisma/adapter-pg";
-
-const { Pool } = pkg;
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
+import { ProductType } from "@prisma/client";
+import { prisma } from "../lib/prisma";
 
 const formatPrice = (price: number | null | undefined) => {
   if (price == null) return null;

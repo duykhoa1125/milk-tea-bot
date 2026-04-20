@@ -28,6 +28,15 @@ const RETRY_BASE_DELAY_MS = Number(
 const RETRY_MAX_DELAY_MS = Number(
   process.env.GEMINI_RETRY_MAX_DELAY_MS || 12000,
 );
+const CHAT_SESSION_TTL_MS = Number(
+  process.env.GEMINI_SESSION_TTL_MS || 30 * 60 * 1000,
+);
+const CHAT_SESSION_MAX_SIZE = Number(
+  process.env.GEMINI_SESSION_MAX_SIZE || 2000,
+);
+const CHAT_SESSION_CLEANUP_INTERVAL_MS = Number(
+  process.env.GEMINI_SESSION_CLEANUP_INTERVAL_MS || 5 * 60 * 1000,
+);
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -105,11 +114,67 @@ export const chatModel = genAI.getGenerativeModel({
 });
 
 // Cache history trên Object Tạm (Nếu server scale multi-node thì phải đưa đoạn history này vào Redis)
-const chatSessions = new Map(); //Map trong RAM (bộ nhớ của server).
+type ChatSession = ReturnType<typeof chatModel.startChat>;
+type ChatSessionEntry = {
+  chat: ChatSession;
+  lastActiveAt: number;
+};
+
+const chatSessions = new Map<number, ChatSessionEntry>(); //Map trong RAM (bộ nhớ của server).
 // chatSessions = {
 //     userId1 -> chatSession1,
 //     userId2 -> chatSession2
 //   }
+
+const touchSession = (userId: number, chat: ChatSession) => {
+  chatSessions.set(userId, {
+    chat,
+    lastActiveAt: Date.now(),
+  });
+};
+
+const cleanupExpiredSessions = () => {
+  const now = Date.now();
+
+  for (const [userId, entry] of chatSessions.entries()) {
+    if (now - entry.lastActiveAt > CHAT_SESSION_TTL_MS) {
+      chatSessions.delete(userId);
+    }
+  }
+
+  if (chatSessions.size <= CHAT_SESSION_MAX_SIZE) {
+    return;
+  }
+
+  const overflow = chatSessions.size - CHAT_SESSION_MAX_SIZE;
+  const oldestEntries = [...chatSessions.entries()]
+    .sort((a, b) => a[1].lastActiveAt - b[1].lastActiveAt)
+    .slice(0, overflow);
+
+  for (const [userId] of oldestEntries) {
+    chatSessions.delete(userId);
+  }
+};
+
+const cleanupTimer = setInterval(
+  cleanupExpiredSessions,
+  CHAT_SESSION_CLEANUP_INTERVAL_MS,
+);
+cleanupTimer.unref?.();
+
+const getOrCreateSession = (userId: number) => {
+  cleanupExpiredSessions();
+
+  const existingSession = chatSessions.get(userId);
+  if (existingSession) {
+    touchSession(userId, existingSession.chat);
+    return existingSession.chat;
+  }
+
+  const newSession = chatModel.startChat({ history: [] });
+  touchSession(userId, newSession);
+  return newSession;
+};
 
 export const handleAIFlow = async (
   userId: number,
@@ -120,19 +185,7 @@ export const handleAIFlow = async (
     const menuContext = await getMenuPromptText();
 
     // 1. Tạo session hoặc lấy history cũ
-    if (!chatSessions.has(userId)) {
-      chatSessions.set(userId, chatModel.startChat({ history: [] }));
-
-      // chatModel.startChat = {
-      //     history: [
-      //         { role: "user", content: "Hi" },
-      //         { role: "model", content: "Hello" },
-      //         ...
-      //     ]
-      //   }
-    }
-
-    const chat = chatSessions.get(userId);
+    const chat = getOrCreateSession(userId);
 
     // 2. Gửi text cho Gemini
     const promptWithMenu = `${menuContext}\n\nTin nhan khach hang: ${userPrompt}`;
