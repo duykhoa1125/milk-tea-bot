@@ -9,6 +9,7 @@ import {
   verifyPayOSWebhookSignature,
 } from "./services/payos.service";
 import { clearCart } from "./services/cart.service";
+import { redis } from "./lib/redis";
 
 const app = express();
 
@@ -22,7 +23,25 @@ app.use(
 app.use(express.json());
 
 //telegram transmit webhook to our server
-app.post("/webhook", botWebhook);
+app.post("/webhook", async (req, res) => {
+  const updateId = (req.body as { update_id?: number })?.update_id;
+
+  if (typeof updateId === "number") {
+    const dedupeKey = `tg:update:${updateId}`;
+    const isFirstTime = await redis.set(dedupeKey, "1", {
+      ex: 60 * 60 * 24,
+      nx: true,
+    });
+
+    if (!isFirstTime) {
+      // Ignore duplicated Telegram retries safely.
+      res.status(200).json({ ok: true, deduped: true });
+      return;
+    }
+  }
+
+  await botWebhook(req, res);
+});
 
 // Kitchen dashboard API
 app.use("/api", dashboardRouter);
@@ -34,7 +53,11 @@ app.use("/api", dashboardRouter);
 app.get("/setup-webhook", async (req, res) => {
   try {
     const url = `${config.WEBHOOK_URL}/webhook`;
-    await bot.api.setWebhook(url);
+    await bot.api.setWebhook(url, {
+      secret_token: config.TELEGRAM_WEBHOOK_SECRET || undefined,
+      drop_pending_updates: true,
+      allowed_updates: ["message", "callback_query"],
+    });
     res.send(`Webhook successfully set to: ${url}`);
   } catch (error) {
     console.error("Error setting up webhook:", error);

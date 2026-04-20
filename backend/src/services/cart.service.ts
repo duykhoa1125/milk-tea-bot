@@ -1,16 +1,10 @@
-import { Redis } from '@upstash/redis'
-import { config } from '../config/env';
-
-const redis = new Redis({
-    url: config.UPSTASH_REDIS_REST_URL,
-    token: config.UPSTASH_REDIS_REST_TOKEN,
-})
+import { redis } from "../lib/redis";
 
 export interface CartItem {
     id: string;
-    productId: string; 
+    productId: string;
     productName: string;
-    size: 'M' | 'L';
+    size: "M" | "L";
     toppings: string[];
     note: string;
     quantity: number;
@@ -21,19 +15,22 @@ export const getCart = async (userId: string | number): Promise<CartItem[]> => {
     return cartItem || [];
 };
 
-export const addToCart = async (userId: string | number, item: Omit<CartItem, 'id'>) => {
+export const addToCart = async (
+    userId: string | number,
+    item: Omit<CartItem, "id">,
+) => {
     const currentCart = await getCart(userId);
     const newItem: CartItem = {
         ...item,
-        id: Date.now().toString() // fix in future, 
+        id: Date.now().toString(),
     };
     currentCart.push(newItem);
 
-    // Lưu lại vào redis (TTL = 1 ngày, nếu khách không chốt sẽ tự xóa)
+    // Luu lai vao redis (TTL = 1 ngay, neu khach khong chot se tu xoa)
     await redis.set(`cart:${userId}`, currentCart, { ex: 86400 });
     return currentCart;
 };
-//sau khi thanh toan
+// sau khi thanh toan
 export const clearCart = async (userId: string | number) => {
     await redis.del(`cart:${userId}`);
 };

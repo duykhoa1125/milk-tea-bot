@@ -89,4 +89,10 @@ bot.on("message:photo", async (ctx) => {
 });
 
 // Module export middleware for Express
-export const botWebhook = webhookCallback(bot, "express");
+export const botWebhook = webhookCallback(bot, "express", {
+  // Return a response before Telegram hits the hard 10s webhook timeout.
+  onTimeout: "return",
+  timeoutMilliseconds: 9_500,
+  secretToken: config.TELEGRAM_WEBHOOK_SECRET || undefined,
+});
+

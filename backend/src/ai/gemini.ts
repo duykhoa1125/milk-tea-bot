@@ -60,12 +60,26 @@ export const handleAIFlow = async (
     const promptWithMenu = `${menuContext}\n\nTin nhan khach hang: ${userPrompt}`;
     let response = await chat.sendMessage(promptWithMenu);
     let aiMessage = response.response;
+    const executedCalls = new Set<string>();
+    const MAX_FUNCTION_CALLS_PER_TURN = 5;
+    let functionCallCount = 0;
 
     // 3. VÒNG LẶP FUNCTION CALLING: Nếu Gemini "muốn" gọi hàm
     while (aiMessage.functionCalls()?.length > 0) {
+      if (functionCallCount >= MAX_FUNCTION_CALLS_PER_TURN) {
+        return "Xin lỗi anh/chị, hệ thống đang bận. Vui lòng thử lại sau.";
+      }
+
       const call = aiMessage.functionCalls()[0]; // Lấy hàm đầu tiên
       const funcName = call.name;
       const args = call.args;
+      functionCallCount += 1;
+
+      const callKey = `${funcName}:${JSON.stringify(args)}`;
+      if (executedCalls.has(callKey)) {
+        return "Yêu cầu đang được xử lý, vui lòng đợi trong giây lát.";
+      }
+      executedCalls.add(callKey);
 
       console.log(
         `🤖 AI is calling function: ${funcName} with arguments:`,
@@ -93,8 +107,13 @@ export const handleAIFlow = async (
         functionResult = { status: "success", cart: currentCart };
       } else if (funcName === "checkout_cart") {
         const result = await checkout(String(userId), userName, args.note);
-        functionResult = result.error
-          ? { status: "error", message: result.error }
+        const checkoutError =
+          "error" in result && typeof result.error === "string"
+            ? result.error
+            : null;
+
+        functionResult = checkoutError
+          ? { status: "error", message: checkoutError }
           : {
               status: "success",
               orderId: result.orderId,
