@@ -21,6 +21,74 @@ import { getMenuPromptText } from "../services/menu.service";
 
 const genAI = new GoogleGenerativeAI(config.GEMINI_API_KEY);
 
+const RETRY_ATTEMPTS = Number(process.env.GEMINI_RETRY_ATTEMPTS || 8);
+const RETRY_BASE_DELAY_MS = Number(
+  process.env.GEMINI_RETRY_BASE_DELAY_MS || 1200,
+);
+const RETRY_MAX_DELAY_MS = Number(
+  process.env.GEMINI_RETRY_MAX_DELAY_MS || 12000,
+);
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const extractErrorText = (error: unknown) => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+};
+
+const isRetryableGeminiError = (error: unknown) => {
+  const errorText = extractErrorText(error).toLowerCase();
+  return (
+    errorText.includes("429") ||
+    errorText.includes("503") ||
+    errorText.includes("resource_exhausted") ||
+    errorText.includes("rate") ||
+    errorText.includes("quota") ||
+    errorText.includes("overloaded") ||
+    errorText.includes("temporarily unavailable") ||
+    errorText.includes("timeout") ||
+    errorText.includes("deadline") ||
+    errorText.includes("server busy")
+  );
+};
+
+const sendMessageWithRetry = async (chat: any, payload: unknown) => {
+  let attempt = 0;
+
+  while (true) {
+    try {
+      return await chat.sendMessage(payload);
+    } catch (error) {
+      attempt += 1;
+
+      if (!isRetryableGeminiError(error) || attempt >= RETRY_ATTEMPTS) {
+        throw error;
+      }
+
+      const expDelay = RETRY_BASE_DELAY_MS * Math.pow(2, attempt - 1);
+      const jitter = Math.floor(Math.random() * 400);
+      const retryDelayMs = Math.min(RETRY_MAX_DELAY_MS, expDelay + jitter);
+
+      console.warn(
+        `Gemini busy/rate limited. Retry ${attempt}/${RETRY_ATTEMPTS} in ${retryDelayMs}ms`,
+      );
+
+      await sleep(retryDelayMs);
+    }
+  }
+};
+
 export const chatModel = genAI.getGenerativeModel({
   model: config.GEMINI_MODEL,
   systemInstruction: SYSTEM_INSTRUCTION,
@@ -68,7 +136,7 @@ export const handleAIFlow = async (
 
     // 2. Gửi text cho Gemini
     const promptWithMenu = `${menuContext}\n\nTin nhan khach hang: ${userPrompt}`;
-    let response = await chat.sendMessage(promptWithMenu);
+    let response = await sendMessageWithRetry(chat, promptWithMenu);
     let aiMessage = response.response;
     const executedCalls = new Set<string>();
     const MAX_FUNCTION_CALLS_PER_TURN = 5;
@@ -183,7 +251,7 @@ export const handleAIFlow = async (
 
       // GỬI KẾT QUẢ CỦA HÀM NGƯỢC XUỐNG CHO AI
       // AI sẽ dùng kết quả này để "nói" câu cuối cùng với khách
-      response = await chat.sendMessage([
+      response = await sendMessageWithRetry(chat, [
         {
           functionResponse: {
             name: funcName,
@@ -212,6 +280,6 @@ export const handleAIFlow = async (
     return aiMessage.text();
   } catch (error) {
     console.error("Error generating AI response:", error);
-    return "Xin lỗi anh/chị, hệ thống đang bận. Vui lòng thử lại sau.";
+    return "Xin lỗi anh/chị, hệ thống đang quá tải. Em đã tự thử lại nhiều lần nhưng chưa thành công, anh/chị thử lại giúp em sau ít phút nhé.";
   }
 };

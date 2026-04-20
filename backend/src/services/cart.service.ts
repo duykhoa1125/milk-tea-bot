@@ -34,7 +34,9 @@ const matchesSelector = (item: CartItem, selector?: CartItemSelector) => {
 
   if (
     selector.productName &&
-    !normalizeText(item.productName).includes(normalizeText(selector.productName))
+    !normalizeText(item.productName).includes(
+      normalizeText(selector.productName),
+    )
   ) {
     return false;
   }
@@ -76,7 +78,9 @@ export const removeCartItems = async (
   selector?: CartItemSelector,
 ) => {
   const currentCart = await getCart(userId);
-  const remainingCart = currentCart.filter((item) => !matchesSelector(item, selector));
+  const remainingCart = currentCart.filter(
+    (item) => !matchesSelector(item, selector),
+  );
   const removedCount = currentCart.length - remainingCart.length;
 
   await saveCart(userId, remainingCart);
