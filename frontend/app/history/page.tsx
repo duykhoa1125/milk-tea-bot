@@ -24,7 +24,6 @@ export default function HistoryPage() {
   const [filter, setFilter] = useState("ALL");
 
   const fetchHistory = useCallback(async () => {
-    setLoading(true);
     try {
       const res = await fetch(`${BACKEND_URL}/api/orders/history?status=${filter}&limit=50`);
       if (!res.ok) throw new Error("Failed to fetch history");
@@ -63,7 +62,12 @@ export default function HistoryPage() {
           {["ALL", "DONE", "CANCELLED"].map((f) => (
             <button
               key={f}
-              onClick={() => setFilter(f)}
+              onClick={() => {
+                if (filter !== f) {
+                  setFilter(f);
+                  setLoading(true);
+                }
+              }}
               className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${
                 filter === f 
                   ? "bg-primary text-white shadow-lg shadow-primary/20" 
