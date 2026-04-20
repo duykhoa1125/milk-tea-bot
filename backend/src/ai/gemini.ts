@@ -16,7 +16,10 @@ import {
   updateCartItems,
   type CartItemSelector,
 } from "../services/cart.service";
-import { checkout } from "../services/order.service";
+import {
+  checkout,
+  invalidatePendingPaymentOrders,
+} from "../services/order.service";
 import { getMenuPromptText } from "../services/menu.service";
 
 const genAI = new GoogleGenerativeAI(config.GEMINI_API_KEY);
@@ -97,6 +100,11 @@ const sendMessageWithRetry = async (chat: any, payload: unknown) => {
     }
   }
 };
+
+const CHECKOUT_INTENT_REGEX =
+  /\b(thanh\s*toan|thanh\s*toán|checkout|chot\s*don|chốt\s*đơn|tinh\s*tien|tính\s*tiền)\b/i;
+
+const PAYOS_LINK_REGEX = /https?:\/\/pay\.payos\.vn\/\S+/i;
 
 export const chatModel = genAI.getGenerativeModel({
   model: config.GEMINI_MODEL,
@@ -229,9 +237,11 @@ export const handleAIFlow = async (
           note: args.note || "",
           quantity: args.quantity,
         });
+        await invalidatePendingPaymentOrders(String(userId));
         functionResult = {
           status: "success",
           message: `Đã thêm ${args.quantity} ly ${args.productName} vào giỏ.`,
+          paymentLinkInvalidated: true,
         };
       } else if (funcName === "view_user_cart") {
         const currentCart = await getCart(userId);
@@ -242,20 +252,28 @@ export const handleAIFlow = async (
 
         if (action === "remove") {
           const result = await removeCartItems(userId, selector);
+          if (result.removedCount > 0) {
+            await invalidatePendingPaymentOrders(String(userId));
+          }
           functionResult = {
             status: "success",
             message: `Da bo ${result.removedCount} mon khoi gio.`,
             cart: result.cart,
+            paymentLinkInvalidated: result.removedCount > 0,
           };
         } else if (action === "keep_only") {
           const keepSelectors = Array.isArray(args.keepSelectors)
             ? (args.keepSelectors as CartItemSelector[])
             : [];
           const result = await keepOnlyCartItems(userId, keepSelectors);
+          if (result.removedCount > 0) {
+            await invalidatePendingPaymentOrders(String(userId));
+          }
           functionResult = {
             status: "success",
             message: `Da giu lai ${result.keptCount} mon va bo ${result.removedCount} mon.`,
             cart: result.cart,
+            paymentLinkInvalidated: result.removedCount > 0,
           };
         } else if (action === "update") {
           const updates = (args.updates || {}) as {
@@ -265,17 +283,23 @@ export const handleAIFlow = async (
             size?: "M" | "L";
           };
           const result = await updateCartItems(userId, selector, updates);
+          if (result.updatedCount > 0) {
+            await invalidatePendingPaymentOrders(String(userId));
+          }
           functionResult = {
             status: "success",
             message: `Da cap nhat ${result.updatedCount} mon trong gio.`,
             cart: result.cart,
+            paymentLinkInvalidated: result.updatedCount > 0,
           };
         } else if (action === "clear") {
           await clearCart(userId);
+          await invalidatePendingPaymentOrders(String(userId));
           functionResult = {
             status: "success",
             message: "Da xoa toan bo gio hang.",
             cart: [],
+            paymentLinkInvalidated: true,
           };
         } else {
           functionResult = {
@@ -330,7 +354,16 @@ export const handleAIFlow = async (
     }
 
     // KHI AI TRẢ LỜI NGÔN NGỮ TỰ NHIÊN (TEXT)
-    return aiMessage.text();
+    const finalText = aiMessage.text();
+
+    if (
+      PAYOS_LINK_REGEX.test(finalText) &&
+      !CHECKOUT_INTENT_REGEX.test(userPrompt)
+    ) {
+      return "Dạ em đã cập nhật giỏ hàng theo yêu cầu. Link thanh toán cũ không còn hiệu lực, khi anh/chị muốn trả tiền thì nhắn 'thanh toán' để em tạo link mới đúng với giỏ hiện tại nhé.";
+    }
+
+    return finalText;
   } catch (error) {
     console.error("Error generating AI response:", error);
     return "Xin lỗi anh/chị, hệ thống đang quá tải. Em đã tự thử lại nhiều lần nhưng chưa thành công, anh/chị thử lại giúp em sau ít phút nhé.";

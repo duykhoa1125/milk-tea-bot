@@ -64,6 +64,13 @@ export const markOrderAsPaid = async (orderCode: number) => {
     };
   }
 
+  if (existingOrder.status !== OrderStatus.PENDING_PAYMENT) {
+    return {
+      order: existingOrder,
+      alreadyPaid: true,
+    };
+  }
+
   const updatedOrder = await prisma.order.update({
     where: { id: orderCode },
     data: {

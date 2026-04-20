@@ -7,6 +7,20 @@ import { config } from "../config/env";
 import { createPaymentLink } from "./payos.service";
 import { redis } from "../lib/redis";
 
+export const invalidatePendingPaymentOrders = async (telegramId: string) => {
+  const result = await prisma.order.updateMany({
+    where: {
+      telegramId,
+      status: OrderStatus.PENDING_PAYMENT,
+    },
+    data: {
+      status: OrderStatus.CANCELLED,
+    },
+  });
+
+  return result.count;
+};
+
 const buildPaymentItemName = (
   productName: string,
   size: string,
@@ -109,18 +123,18 @@ export const checkout = async (
       }),
       toppingNames.length > 0
         ? prisma.product.findMany({
-          where: {
-            name: { in: toppingNames },
-            type: ProductType.TOPPING,
-          },
-          select: {
-            name: true,
-            priceFixed: true,
-          },
-        })
+            where: {
+              name: { in: toppingNames },
+              type: ProductType.TOPPING,
+            },
+            select: {
+              name: true,
+              priceFixed: true,
+            },
+          })
         : Promise.resolve(
-          [] as Array<{ name: string; priceFixed: number | null }>,
-        ),
+            [] as Array<{ name: string; priceFixed: number | null }>,
+          ),
     ]);
 
     const productById = new Map(
