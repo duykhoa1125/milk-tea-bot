@@ -2,6 +2,7 @@ import { OrderStatus } from "@prisma/client";
 import { Request, Response } from "express";
 import {
   getActiveOrders,
+  getOrderHistory,
   updateOrderStatus,
 } from "../services/dashboard.service";
 
@@ -11,6 +12,11 @@ const ALLOWED_STATUS = new Set<OrderStatus>([
   OrderStatus.DONE,
   OrderStatus.CANCELLED,
 ]);
+
+const HISTORY_DEFAULT_STATUS: OrderStatus[] = [
+  OrderStatus.DONE,
+  OrderStatus.CANCELLED,
+];
 
 export const getOrdersHandler = async (_req: Request, res: Response) => {
   try {
@@ -68,5 +74,60 @@ export const updateOrderStatusHandler = async (req: Request, res: Response) => {
     }
 
     res.status(500).json({ error: "Không thể cập nhật trạng thái đơn hàng" });
+  }
+};
+
+export const getOrderHistoryHandler = async (req: Request, res: Response) => {
+  const page = Number(req.query.page || 1);
+  const limit = Number(req.query.limit || 20);
+  const rawStatus = String(req.query.status || "").trim();
+
+  if (!Number.isInteger(page) || page < 1) {
+    res.status(400).json({ error: "page không hợp lệ" });
+    return;
+  }
+
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+    res.status(400).json({ error: "limit không hợp lệ (1-100)" });
+    return;
+  }
+
+  let statuses: OrderStatus[] | undefined = HISTORY_DEFAULT_STATUS;
+
+  if (rawStatus) {
+    if (rawStatus.toUpperCase() === "ALL") {
+      statuses = undefined;
+    } else {
+      const requestedStatuses = rawStatus
+        .split(",")
+        .map((value) => value.trim().toUpperCase())
+        .filter(Boolean) as OrderStatus[];
+
+      if (
+        requestedStatuses.length === 0 ||
+        requestedStatuses.some((status) => !ALLOWED_STATUS.has(status))
+      ) {
+        res.status(400).json({
+          error:
+            "status không hợp lệ. Dùng ALL hoặc danh sách: PENDING,COOKING,DONE,CANCELLED",
+        });
+        return;
+      }
+
+      statuses = requestedStatuses;
+    }
+  }
+
+  try {
+    const history = await getOrderHistory({
+      page,
+      limit,
+      statuses,
+    });
+
+    res.json(history);
+  } catch (error) {
+    console.error("Error fetching order history:", error);
+    res.status(500).json({ error: "Không thể lấy lịch sử đơn hàng" });
   }
 };
