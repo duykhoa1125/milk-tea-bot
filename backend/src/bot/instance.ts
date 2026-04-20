@@ -95,4 +95,3 @@ export const botWebhook = webhookCallback(bot, "express", {
   timeoutMilliseconds: 9_500,
   secretToken: config.TELEGRAM_WEBHOOK_SECRET || undefined,
 });
-

@@ -1,4 +1,3 @@
-import crypto from "node:crypto";
 import { PayOS } from "@payos/node";
 import { config } from "../config/env";
 import { OrderStatus } from "@prisma/client";
@@ -24,45 +23,6 @@ export type PayOSWebhookPayload = {
   signature: string;
 };
 
-const normalizeValue = (value: unknown): unknown => {
-  if (value == null) {
-    return "";
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((item) => normalizeValue(item));
-  }
-
-  if (typeof value === "object") {
-    return Object.keys(value as Record<string, unknown>)
-      .sort()
-      .reduce<Record<string, unknown>>((accumulator, key) => {
-        accumulator[key] = normalizeValue(
-          (value as Record<string, unknown>)[key],
-        );
-        return accumulator;
-      }, {});
-  }
-
-  return value;
-};
-
-const buildSignaturePayload = (data: Record<string, unknown>) => {
-  return Object.keys(data)
-    .sort()
-    .map((key) => {
-      const normalizedValue = normalizeValue(data[key]);
-      const stringValue = Array.isArray(normalizedValue)
-        ? JSON.stringify(normalizedValue)
-        : typeof normalizedValue === "object"
-          ? JSON.stringify(normalizedValue)
-          : String(normalizedValue);
-
-      return `${key}=${encodeURIComponent(stringValue)}`;
-    })
-    .join("&");
-};
-
 export const createPaymentLink = async (input: {
   orderCode: number;
   amount: number;
@@ -74,14 +34,8 @@ export const createPaymentLink = async (input: {
   return payOS.paymentRequests.create(input);
 };
 
-export const verifyPayOSWebhookSignature = (payload: PayOSWebhookPayload) => {
-  const signaturePayload = buildSignaturePayload(payload.data);
-  const expectedSignature = crypto
-    .createHmac("sha256", config.PAYOS_CHECKSUM_KEY)
-    .update(signaturePayload)
-    .digest("hex");
-
-  return expectedSignature.toLowerCase() === payload.signature.toLowerCase();
+export const verifyPayOSWebhookPayload = async (payload: PayOSWebhookPayload) => {
+  return payOS.webhooks.verify(payload as never);
 };
 
 export const markOrderAsPaid = async (orderCode: number) => {

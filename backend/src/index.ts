@@ -6,7 +6,7 @@ import dashboardRouter from "./routes/dashboard.route";
 import {
   markOrderAsPaid,
   type PayOSWebhookPayload,
-  verifyPayOSWebhookSignature,
+  verifyPayOSWebhookPayload,
 } from "./services/payos.service";
 import { clearCart } from "./services/cart.service";
 import { redis } from "./lib/redis";
@@ -69,15 +69,13 @@ app.post("/payos/webhook", async (req, res) => {
   const payload = req.body as PayOSWebhookPayload;
 
   try {
-    if (!verifyPayOSWebhookSignature(payload)) {
-      res.status(400).json({ error: "Invalid payOS signature" });
-      return;
-    }
+    const verifiedData = await verifyPayOSWebhookPayload(payload);
 
-    const orderCode = Number(payload.data.orderCode);
+    const orderCode = Number(verifiedData.orderCode);
 
     if (Number.isNaN(orderCode)) {
-      res.status(400).json({ error: "orderCode không hợp lệ" });
+      // Accept unknown validation payloads from provider but skip business processing.
+      res.status(200).json({ success: true, ignored: true, reason: "invalid_order_code" });
       return;
     }
 
@@ -94,17 +92,28 @@ app.post("/payos/webhook", async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
-    console.error("PayOS webhook error:", error);
-
+    // Signature must be valid for real webhook callbacks.
     if (
       typeof error === "object" &&
       error &&
-      "code" in error &&
-      error.code === "P2025"
+      "name" in error &&
+      String(error.name).toLowerCase().includes("invalidsignature")
     ) {
-      res.status(404).json({ error: "Không tìm thấy đơn hàng" });
+      res.status(400).json({ error: "Invalid payOS signature" });
       return;
     }
+
+    // For webhook URL validation/test events, PayOS may send non-business order codes.
+    if (
+      typeof error === "object" &&
+      error &&
+      "message" in error &&
+      String(error.message).includes("Không tìm thấy đơn hàng")
+    ) {
+      res.status(200).json({ success: true, ignored: true, reason: "order_not_found" });
+      return;
+    }
+    console.error("PayOS webhook error:", error);
 
     res.status(500).json({ error: "Không thể xử lý webhook PayOS" });
   }

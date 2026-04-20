@@ -56,7 +56,11 @@ export const checkout = async (
   const cart = await getCart(telegramId);
   if (!cart || cart.length === 0) return { error: "Giỏ hàng rỗng" };
 
-  const fingerprint = createCheckoutFingerprint(telegramId, normalizedNote, cart);
+  const fingerprint = createCheckoutFingerprint(
+    telegramId,
+    normalizedNote,
+    cart,
+  );
   const lockKey = `checkout:lock:${telegramId}`;
   const resultKey = `checkout:result:${fingerprint}`;
   const lockToken = crypto.randomUUID();
