@@ -1,56 +1,83 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fdfaf3; /* Warm Cream */
-  --foreground: #2d241e; /* Espresso Brown */
-  --menu-card: #ffffff;
-  --accent: #5d4037; /* Coffee Accent */
-  --matcha: #4caf50;
-  --amber: #ffa000;
+  --background: #fcfcfc;
+  --foreground: #1c1c1c;
+  --card-bg: #ffffff;
+  --sidebar-bg: #ffffff;
+  --primary: #ff5722;
+  --primary-glow: rgba(255, 87, 34, 0.2);
+  --secondary: #64748b;
+  --accent: #5d4037;
+  --border: #f1f1f1;
+  --sidebar-width: 80px;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-accent: var(--accent);
-  --color-menu: var(--menu-card);
-  
-  --font-sans: var(--font-geist-sans);
-  --font-serif: var(--font-serif);
-  
-  --shadow-menu: 0 4px 20px -2px rgba(45, 36, 30, 0.05);
+  --color-primary: var(--primary);
+  --color-sidebar: var(--sidebar-bg);
+  --color-card: var(--card-bg);
+  --radius-xl: 32px;
+  --radius-2xl: 40px;
 }
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+}
+
+.modern-card {
+  background: var(--card-bg);
+  border-radius: 24px;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modern-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.06);
+}
+
 
 body {
   background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
-  background-image: radial-gradient(#dcd4cb 0.5px, transparent 0.5px);
-  background-size: 24px 24px;
   background-attachment: fixed;
 }
 
-.menu-ticket {
-  background: var(--menu-card);
-  border-radius: 4px;
-  box-shadow: var(--shadow-menu);
-  position: relative;
-  border: 1px solid #eee;
+.modern-button {
+  @apply px-6 py-3 rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-2;
 }
 
-.menu-ticket::after {
-  content: "";
-  position: absolute;
-  bottom: -5px;
-  left: 0;
-  width: 100%;
-  height: 10px;
-  background-image: linear-gradient(135deg, white 25%, transparent 25%), 
-                    linear-gradient(225deg, white 25%, transparent 25%);
-  background-position: bottom left;
-  background-size: 10px 10px;
-  background-repeat: repeat-x;
-  filter: drop-shadow(0 2px 2px rgba(0,0,0,0.05));
+.modern-button-primary {
+  @apply bg-primary text-white shadow-lg shadow-primary/20 hover:shadow-primary/40 active:scale-95;
 }
+
+.modern-button-secondary {
+  @apply bg-white border border-border text-secondary hover:bg-gray-50 active:scale-95;
+}
+
+.badge {
+  @apply px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider;
+}
+
+.badge-pending {
+  @apply bg-amber-100 text-amber-700;
+}
+
+.badge-cooking {
+  @apply bg-blue-100 text-blue-700;
+}
+
+.badge-done {
+  @apply bg-emerald-100 text-emerald-700;
+}
+
 
 
