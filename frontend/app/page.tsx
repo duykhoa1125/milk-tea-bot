@@ -4,6 +4,7 @@ import ModernOrderCard from "@/components/ModernOrderCard";
 import { LayoutDashboard, Clock, RefreshCcw, TrendingUp, AlertCircle, ShoppingCart } from "lucide-react";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3000";
+const ADMIN_API_KEY = process.env.NEXT_PUBLIC_ADMIN_API_KEY || "";
 
 export default function KitchenPage() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -12,7 +13,11 @@ export default function KitchenPage() {
 
   const fetchOrders = useCallback(async () => {
     try {
-      const res = await fetch(`${BACKEND_URL}/api/orders`);
+      const res = await fetch(`${BACKEND_URL}/api/orders`, {
+        headers: {
+          "x-admin-key": ADMIN_API_KEY,
+        },
+      });
       if (!res.ok) throw new Error("Failed to fetch");
       const data = await res.json();
       setOrders(data);

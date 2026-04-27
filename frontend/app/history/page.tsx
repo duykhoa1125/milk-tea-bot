@@ -18,6 +18,7 @@ import { format } from "date-fns";
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3000";
+const ADMIN_API_KEY = process.env.NEXT_PUBLIC_ADMIN_API_KEY || "";
 
 export default function HistoryPage() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -28,6 +29,11 @@ export default function HistoryPage() {
     try {
       const res = await fetch(
         `${BACKEND_URL}/api/orders/history?status=${filter}&limit=50`,
+        {
+          headers: {
+            "x-admin-key": ADMIN_API_KEY,
+          },
+        },
       );
       if (!res.ok) throw new Error("Failed to fetch history");
       const data = await res.json();
