@@ -6,6 +6,16 @@ import path from 'node:path';
 import pkg from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 
+interface MenuRow {
+  category: string;
+  item_id: string;
+  name: string;
+  description: string;
+  price_m: string;
+  price_l: string;
+  available: string;
+}
+
 const { Pool } = pkg;
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
@@ -16,7 +26,7 @@ async function main() {
   const filePath = path.join(process.cwd(), 'csv', 'Menu.csv');
   console.log('Bắt đầu đọc file: ', filePath);
 
-  const results: any[] = [];
+  const results: MenuRow[] = [];
 
   // Đọc toàn bộ dữ liệu từ CSV vào RAM trước (vì file nhỏ)
   await new Promise((resolve, reject) => {
