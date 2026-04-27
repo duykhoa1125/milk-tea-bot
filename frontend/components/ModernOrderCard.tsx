@@ -21,13 +21,17 @@ export default function ModernOrderCard({
   onStatusChange,
 }: OrderCardProps) {
   const [isUpdating, setIsUpdating] = useState(false);
+  const ADMIN_API_KEY = process.env.NEXT_PUBLIC_ADMIN_API_KEY || "";
 
   const updateStatus = async (status: string) => {
     setIsUpdating(true);
     try {
       const res = await fetch(`${backendUrl}/api/orders/${order.id}/status`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-key": ADMIN_API_KEY,
+        },
         body: JSON.stringify({ status }),
       });
       if (!res.ok) throw new Error("Failed to update status");
