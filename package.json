@@ -9,5 +9,12 @@
     "backend:dev": "npm run dev --workspace=backend",
     "backend:seed": "npm run seed --workspace=backend",
     "frontend:dev": "npm run dev --workspace=frontend"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/supertest": "^7.2.0",
+    "jest": "^30.3.0",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.9"
   }
 }
