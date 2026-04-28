@@ -8,11 +8,8 @@ import { authMiddleware } from "../middleware/auth.middleware";
 
 const dashboardRouter = Router();
 
-// Apply authMiddleware to all dashboard routes
-dashboardRouter.use(authMiddleware);
-
-dashboardRouter.get("/orders", getOrdersHandler);
-dashboardRouter.get("/orders/history", getOrderHistoryHandler);
-dashboardRouter.patch("/orders/:id/status", updateOrderStatusHandler);
+dashboardRouter.get("/orders", authMiddleware, getOrdersHandler);
+dashboardRouter.get("/orders/history", authMiddleware, getOrderHistoryHandler);
+dashboardRouter.patch("/orders/:id/status", authMiddleware, updateOrderStatusHandler);
 
 export default dashboardRouter;
