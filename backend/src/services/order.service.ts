@@ -161,39 +161,37 @@ export const checkout = async (
 
     let calculatedTotal = 0;
 
-    const itemsWithPrice = await Promise.all(
-      cart.map(async (item) => {
-        const product = productById.get(item.productId);
+    const itemsWithPrice = cart.map((item) => {
+      const product = productById.get(item.productId);
 
-        if (!product) {
-          throw new Error(`Không tìm thấy sản phẩm ${item.productId}`);
-        }
+      if (!product) {
+        throw new Error(`Không tìm thấy sản phẩm ${item.productId}`);
+      }
 
-        const unitPrice =
-          item.size === "L"
-            ? (product.priceL ?? product.priceFixed ?? 0)
-            : (product.priceM ?? product.priceFixed ?? 0);
+      const unitPrice =
+        item.size === "L"
+          ? (product.priceL ?? product.priceFixed ?? 0)
+          : (product.priceM ?? product.priceFixed ?? 0);
 
-        const toppingPrice = item.toppings.reduce(
-          (sum, toppingName) =>
-            sum + (toppingPriceByName.get(toppingName) ?? 0),
-          0,
-        );
+      const toppingPrice = item.toppings.reduce(
+        (sum, toppingName) =>
+          sum + (toppingPriceByName.get(toppingName) ?? 0),
+        0,
+      );
 
-        const finalUnitPrice = unitPrice + toppingPrice;
+      const finalUnitPrice = unitPrice + toppingPrice;
 
-        calculatedTotal += finalUnitPrice * item.quantity;
+      calculatedTotal += finalUnitPrice * item.quantity;
 
-        return {
-          productId: item.productId,
-          size: item.size,
-          unitPrice: finalUnitPrice,
-          quantity: item.quantity,
-          toppings: item.toppings as Prisma.JsonArray,
-          note: item.note || null,
-        };
-      }),
-    );
+      return {
+        productId: item.productId,
+        size: item.size,
+        unitPrice: finalUnitPrice,
+        quantity: item.quantity,
+        toppings: item.toppings as Prisma.JsonArray,
+        note: item.note || null,
+      };
+    });
 
     const order = await prisma.order.create({
       data: {
