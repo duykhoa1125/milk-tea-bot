@@ -63,17 +63,11 @@ export const updateOrderStatusHandler = async (req: Request, res: Response) => {
     res.json(updatedOrder);
   } catch (error: unknown) {
     console.error("Error updating order status:", error);
-    if (
-      typeof error === "object" &&
-      error &&
-      "code" in error &&
-      error.code === "P2025"
-    ) {
-      res.status(404).json({ error: "Không tìm thấy đơn hàng" });
+    if (error instanceof Error && error.message === "Order not found") {
+      res.status(404).json({ error: "Order not found" });
       return;
     }
-
-    res.status(500).json({ error: "Không thể cập nhật trạng thái đơn hàng" });
+    res.status(500).json({ error: "Failed to update order status" });
   }
 };
 
