@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { ProductType } from "@prisma/client";
+import { InlineKeyboard } from "grammy";
 import { prisma } from "../lib/prisma";
 
 const formatPrice = (price: number | null | undefined) => {
@@ -128,6 +129,70 @@ export const getMenuPromptText = async () => {
   lines.push(...(unavailable.length > 0 ? unavailable : ["- Không có"]));
 
   return lines.join("\n");
+};
+
+export const sendMenuWithInlineKeyboard = async (ctx: any) => {
+  const products = await prisma.product.findMany({
+    where: { available: true },
+    orderBy: [{ type: "asc" }, { id: "asc" }],
+  });
+
+  const drinks = products.filter((p) => p.type === ProductType.DRINK);
+  const toppings = products.filter((p) => p.type === ProductType.TOPPING);
+
+  // Group drinks by category
+  const drinksByCategory = drinks.reduce((acc, product) => {
+    const category = product.category || "KHÁC";
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(product);
+    return acc;
+  }, {} as Record<string, typeof drinks>);
+
+  // Send category by category to avoid too many buttons in one message
+  for (const [category, categoryDrinks] of Object.entries(drinksByCategory)) {
+    const keyboard = new InlineKeyboard();
+    let buttonCount = 0;
+
+    for (const drink of categoryDrinks) {
+      if (drink.priceFixed !== null) {
+        keyboard.text(`${drink.name} (${formatPrice(drink.priceFixed)})`, `add_M_${drink.id}`);
+        buttonCount++;
+        if (buttonCount % 2 === 0) keyboard.row();
+      } else {
+        if (drink.priceM !== null) {
+          keyboard.text(`${drink.name} (M - ${formatPrice(drink.priceM)})`, `add_M_${drink.id}`);
+          buttonCount++;
+          if (buttonCount % 2 === 0) keyboard.row();
+        }
+        if (drink.priceL !== null) {
+          keyboard.text(`${drink.name} (L - ${formatPrice(drink.priceL)})`, `add_L_${drink.id}`);
+          buttonCount++;
+          if (buttonCount % 2 === 0) keyboard.row();
+        }
+      }
+    }
+
+    await ctx.reply(`🥤 *${category.toUpperCase()}*`, {
+      reply_markup: keyboard,
+      parse_mode: "Markdown",
+    });
+  }
+
+  // Toppings
+  if (toppings.length > 0) {
+    const toppingKeyboard = new InlineKeyboard();
+    let count = 0;
+    for (const topping of toppings) {
+      toppingKeyboard.text(`${topping.name} (${formatPrice(topping.priceFixed)})`, `add_M_${topping.id}`);
+      count++;
+      if (count % 2 === 0) toppingKeyboard.row();
+    }
+
+    await ctx.reply(`✨ *TOPPING THÊM*`, {
+      reply_markup: toppingKeyboard,
+      parse_mode: "Markdown",
+    });
+  }
 };
 
 export const getMenuForUserText = async () => {
