@@ -78,7 +78,27 @@ const isRetryableGeminiError = (error: unknown) => {
   );
 };
 
-const sendMessageWithRetry = async (chat: any, payload: unknown) => {
+export const chatModel = genAI.getGenerativeModel({
+  model: config.GEMINI_MODEL,
+  systemInstruction: SYSTEM_INSTRUCTION,
+  tools: [
+    {
+      functionDeclarations: [
+        addToCartDeclaration,
+        viewCartDeclaration,
+        editCartDeclaration,
+        checkoutCartDeclaration,
+      ],
+    },
+  ],
+});
+
+type ChatSession = ReturnType<typeof chatModel.startChat>;
+
+const sendMessageWithRetry = async (
+  chat: ChatSession,
+  payload: Parameters<ChatSession["sendMessage"]>[0],
+) => {
   let attempt = 0;
 
   while (true) {
@@ -206,23 +226,7 @@ const detectIntentSignals = (userPrompt: string): IntentSignals => {
 
 const PAYOS_LINK_REGEX = /https?:\/\/pay\.payos\.vn\/\S+/i;
 
-export const chatModel = genAI.getGenerativeModel({
-  model: config.GEMINI_MODEL,
-  systemInstruction: SYSTEM_INSTRUCTION,
-  tools: [
-    {
-      functionDeclarations: [
-        addToCartDeclaration,
-        viewCartDeclaration,
-        editCartDeclaration,
-        checkoutCartDeclaration,
-      ],
-    },
-  ],
-});
-
 // Cache history trên Object Tạm (Nếu server scale multi-node thì phải đưa đoạn history này vào Redis)
-type ChatSession = ReturnType<typeof chatModel.startChat>;
 type ChatSessionEntry = {
   chat: ChatSession;
   lastActiveAt: number;
@@ -315,14 +319,14 @@ export const handleAIFlow = async (
     let functionCallCount = 0;
 
     // 3. VÒNG LẶP FUNCTION CALLING: Nếu Gemini "muốn" gọi hàm
-    while (aiMessage.functionCalls()?.length > 0) {
+    while (aiMessage.functionCalls() && aiMessage.functionCalls()!.length > 0) {
       if (functionCallCount >= MAX_FUNCTION_CALLS_PER_TURN) {
         return "Xin lỗi anh/chị, hệ thống đang bận. Vui lòng thử lại sau.";
       }
 
-      const call = aiMessage.functionCalls()[0]; // Lấy hàm đầu tiên
+      const call = aiMessage.functionCalls()![0]; // Lấy hàm đầu tiên
       const funcName = call.name;
-      const args = call.args;
+      const args = call.args as Record<string, any>;
       functionCallCount += 1;
 
       const callKey = `${funcName}:${JSON.stringify(args)}`;
