@@ -10,6 +10,7 @@ import {
 } from "./services/payos.service";
 import { clearCart } from "./services/cart.service";
 import { redis } from "./lib/redis";
+import { authMiddleware } from "./middleware/auth.middleware";
 
 const app = express();
 
@@ -52,21 +53,7 @@ app.post("/webhook", async (req, res) => {
 app.use("/api", dashboardRouter);
 
 // setup webhook manually via protected admin endpoint
-app.post("/setup-webhook", async (req, res) => {
-  const adminKey = req.header("x-admin-key") || "";
-
-  if (!config.ADMIN_API_KEY) {
-    res
-      .status(503)
-      .json({ error: "ADMIN_API_KEY chưa được cấu hình trên server" });
-    return;
-  }
-
-  if (adminKey !== config.ADMIN_API_KEY) {
-    res.status(403).json({ error: "Forbidden" });
-    return;
-  }
-
+app.post("/setup-webhook", authMiddleware, async (req, res) => {
   try {
     const url = `${config.WEBHOOK_URL}/webhook`;
     await bot.api.setWebhook(url, {

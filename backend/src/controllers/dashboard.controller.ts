@@ -5,6 +5,7 @@ import {
   getOrderHistory,
   updateOrderStatus,
 } from "../services/dashboard.service";
+import { bot } from "../bot/instance";
 
 const ALLOWED_STATUS = new Set<OrderStatus>([
   OrderStatus.PENDING,
@@ -47,17 +48,7 @@ export const updateOrderStatusHandler = async (req: Request, res: Response) => {
 
     if (status === OrderStatus.DONE && updatedOrder.user?.externalId) {
       const message = `✅ Đơn hàng #${orderId} của bạn đã sẵn sàng! Mời bạn đến lấy đồ nhé ☕`;
-      await fetch(
-        `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            chat_id: updatedOrder.user.externalId,
-            text: message,
-          }),
-        },
-      );
+      await bot.api.sendMessage(updatedOrder.user.externalId, message);
     }
 
     res.json(updatedOrder);

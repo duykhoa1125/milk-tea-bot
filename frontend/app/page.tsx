@@ -3,9 +3,6 @@ import { useEffect, useState, useCallback } from "react";
 import ModernOrderCard from "@/components/ModernOrderCard";
 import { LayoutDashboard, Clock, RefreshCcw, TrendingUp, AlertCircle, ShoppingCart } from "lucide-react";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3000";
-const ADMIN_API_KEY = process.env.NEXT_PUBLIC_ADMIN_API_KEY || "";
-
 export default function KitchenPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
@@ -13,11 +10,7 @@ export default function KitchenPage() {
 
   const fetchOrders = useCallback(async () => {
     try {
-      const res = await fetch(`${BACKEND_URL}/api/orders`, {
-        headers: {
-          "x-admin-key": ADMIN_API_KEY,
-        },
-      });
+      const res = await fetch(`/api/orders`);
       if (!res.ok) throw new Error("Failed to fetch");
       const data = await res.json();
       setOrders(data);
@@ -107,7 +100,6 @@ export default function KitchenPage() {
               <ModernOrderCard
                 key={o.id}
                 order={o}
-                backendUrl={BACKEND_URL}
                 onStatusChange={fetchOrders}
               />
             ))}
@@ -131,7 +123,6 @@ export default function KitchenPage() {
               <ModernOrderCard
                 key={o.id}
                 order={o}
-                backendUrl={BACKEND_URL}
                 onStatusChange={fetchOrders}
               />
             ))}

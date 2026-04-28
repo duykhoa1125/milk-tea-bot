@@ -16,10 +16,6 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
-const BACKEND_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3000";
-const ADMIN_API_KEY = process.env.NEXT_PUBLIC_ADMIN_API_KEY || "";
-
 export default function HistoryPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,12 +24,7 @@ export default function HistoryPage() {
   const fetchHistory = useCallback(async () => {
     try {
       const res = await fetch(
-        `${BACKEND_URL}/api/orders/history?status=${filter}&limit=50`,
-        {
-          headers: {
-            "x-admin-key": ADMIN_API_KEY,
-          },
-        },
+        `/api/orders/history?status=${filter}&limit=50`
       );
       if (!res.ok) throw new Error("Failed to fetch history");
       const data = await res.json();
