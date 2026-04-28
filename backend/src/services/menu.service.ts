@@ -84,7 +84,15 @@ const toTwoColumns = (items: string[]) => {
   return rows;
 };
 
+let cachedMenuPrompt: string | null = null;
+let lastMenuFetchAt = 0;
+const MENU_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
 export const getMenuPromptText = async () => {
+  if (cachedMenuPrompt && Date.now() - lastMenuFetchAt < MENU_CACHE_TTL_MS) {
+    return cachedMenuPrompt;
+  }
+
   const products = await prisma.product.findMany({
     orderBy: [{ type: "asc" }, { id: "asc" }],
     select: {
@@ -127,7 +135,10 @@ export const getMenuPromptText = async () => {
   lines.push("MÓN TẠM HẾT:");
   lines.push(...(unavailable.length > 0 ? unavailable : ["- Không có"]));
 
-  return lines.join("\n");
+  cachedMenuPrompt = lines.join("\n");
+  lastMenuFetchAt = Date.now();
+
+  return cachedMenuPrompt;
 };
 
 export const getMenuForUserText = async () => {
