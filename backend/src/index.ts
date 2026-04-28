@@ -3,6 +3,7 @@ import { config } from "./config/env";
 import { bot, botWebhook } from "./bot/instance";
 import cors from "cors";
 import dashboardRouter from "./routes/dashboard.route";
+import { authMiddleware } from "./middleware/auth.middleware";
 import {
   markOrderAsPaid,
   type PayOSWebhookPayload,
@@ -49,7 +50,7 @@ app.post("/webhook", async (req, res) => {
 });
 
 // Kitchen dashboard API
-app.use("/api", dashboardRouter);
+app.use("/api", authMiddleware, dashboardRouter);
 
 // setup webhook manually via protected admin endpoint
 app.post("/setup-webhook", async (req, res) => {
