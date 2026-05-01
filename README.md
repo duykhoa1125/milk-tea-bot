@@ -1,172 +1,190 @@
-# 🧋 Tiệm Trà Sữa AI - Replica Bot của Mẹ
+# Milk Tea Bot
 
-[![Demo Video](https://img.shields.io/badge/Demo-Video-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/watch?v=gtaLfLT-CCw)
-[![Telegram Bot](https://img.shields.io/badge/Telegram-Bot-blue?style=for-the-badge&logo=telegram)](https://t.me/milkteaorder_bot)
-[![Live Dashboard](https://img.shields.io/badge/Live-Dashboard-green?style=for-the-badge&logo=vercel)](https://milk-tea-bot-frontend.vercel.app/)
+An AI-powered milk tea ordering system built as a monorepo. Customers place orders through a Telegram bot, the bot uses Gemini to chat naturally and build the cart, PayOS handles checkout, and a Next.js kitchen dashboard shows incoming orders in real time.
 
-Dự án phát triển một "bản sao AI" đóng vai trò là cô chủ tiệm trà sữa. Bot hoạt động trực tiếp qua **Telegram**, trò chuyện tự nhiên với khách hàng để tư vấn các loại đồ uống kèm topping, sau đó sinh link thanh toán (via PayOS). Ngay khi khách thanh toán thành công, hệ thống tự động đẩy đơn hàng sang giao diện **Kitchen Dashboard** dành cho nhà bếp chuẩn bị món ăn.
----
+## Overview
 
-## 🔗 Demo & Trải nghiệm
+This project is split into two applications:
 
-- **Video Demo**: [YouTube Link](https://www.youtube.com/watch?v=gtaLfLT-CCw)
-- **Telegram Bot**: [@milkteaorder_bot](https://t.me/milkteaorder_bot)
-- **Kitchen Dashboard (Live)**: [milk-tea-bot-frontend.vercel.app](https://milk-tea-bot-frontend.vercel.app/)
+- `backend`: Express API, Telegram bot, Gemini flow, Redis cart/session storage, Prisma database layer, and PayOS webhook handling.
+- `frontend`: Next.js kitchen dashboard for viewing and updating orders.
 
----
+## Features
 
-## ✨ Tính năng nổi bật
+- AI ordering flow in Telegram with Gemini function calling.
+- Menu browsing, cart management, note handling, and checkout support.
+- PayOS payment link generation and webhook-based payment confirmation.
+- Real-time kitchen dashboard for pending and preparing orders.
+- Order history page with filtering and summary stats.
+- Dedicated success and cancel pages for payment redirects.
 
-1. **AI Chat & Tư vấn thông minh**: Sử dụng **Gemini AI** (kết hợp *Function Calling*) để trò chuyện tự nhiên. Bot không chỉ lặp lại menu mà còn giao tiếp mượt mà, phản hồi có cảm xúc, linh hoạt nhận các yêu cầu đặc biệt của khách hàng (VD: bớt đá, không đường, vân vân).
-2. **Hỗ trợ xử lý hình ảnh (Multimodal)**: Khách hàng có thể gửi ảnh các loại ly trà sữa. Bot có thể dự đoán và hỗ trợ nhận diện món đồ uống.
-3. **Quản lý Giỏ Hàng (Cart)**: 
-   - Thêm món, xóa món, điều chỉnh topping, thay đổi phân loại (Size M/L).
-   - Redis dùng để lưu session giỏ hàng mượt mà mà không lo tốn chi phí read/write DB chính.
-4. **Tích hợp thanh toán PayOS**: 
-   - Sinh QR Code hoặc link chuyển khoản tự động. 
-   - Ghi nhận trạng thái "Đã thanh toán" để báo bếp ngay khi có IPN từ webhook ngân hàng.
-5. **Kitchen Dashboard (Next.js)**:
-   - Một giao diện riêng (Frontend) hiển thị danh sách đơn Order theo thời gian thực.
-   - Giao diện đẹp mắt.
+## Tech Stack
 
----
+### Backend
 
-## 🛠 Tech Stack
+- Node.js
+- Express 5
+- Grammy for Telegram bot integration
+- Prisma ORM
+- PostgreSQL
+- Redis via Upstash
+- Gemini via `@google/generative-ai`
+- PayOS via `@payos/node`
 
-Dự án được xây dựng theo kiến trúc **Monorepo** với 2 phần chính.
+### Frontend
 
-### 1. Backend (Logic & Database)
-- **Runtime**: Node.js + Express
-- **Bot Framework**: `grammy` (Webhook mechanism để đảm bảo scale tốt).
-- **AI Model**: `@google/generative-ai` (Gemini Pro / Flash Lite).
-- **Cơ sở dữ liệu chính**: PostgreSQL (phát triển qua serverless NeonDB) đi kèm Prisma ORM.
-- **Cache/Session**: Redis (sử dụng Upstash serverless Redis).
-- **Thanh toán**: `@payos/node` (PayOS API).
+- Next.js 16 App Router
+- React 19
+- Tailwind CSS 4
+- `lucide-react`
+- `date-fns`
 
-### 2. Frontend (Kitchen Dashboard)
-- **Framework**: Next.js (App Router) + React 19.
-- **Styling**: TailwindCSS 4, `lucide-react`.
+## Project Structure
 
----
-
-## 📂 Project Structure
-
-```
+```text
 milk-tea-bot/
-├── backend/                  # Nơi chứa API, webhook, và AI core.
-│   ├── csv/                  # Menu dạng file CSV (để import data mẫu)
-│   ├── prisma/               # Schema và script seed data (seed.ts)
-│   ├── src/
-│   │   ├── ai/               # Custom Prompts, Tools (Function Calling), xử lý Gemini Flow
-│   │   ├── bot/              # File config cho Grammy telegram bot
-│   │   ├── config/           # Lấy biến môi trường (Environment vars)
-│   │   ├── controllers/      # Routing Controllers cho Express
-│   │   ├── routes/           # Các route của Express (API webhook Telegram, PayOS, Dashboard)
-│   │   ├── services/         # Repository pattern xử lý DB, Cart (Redis), Order, PayOS
-│   │   └── index.ts          # Express Server entry-point
-│   └── package.json
-├── frontend/                 # Giao diện Kitchen Dashboard phục vụ việc xem đơn
-│   ├── src/
-│   │   ├── app/
-│   │   └── components/
-│   └── package.json
-
+├── backend/
+│   ├── csv/
+│   ├── prisma/
+│   └── src/
+│       ├── ai/
+│       ├── bot/
+│       ├── config/
+│       ├── controllers/
+│       ├── lib/
+│       ├── routes/
+│       └── services/
+├── frontend/
+│   ├── app/
+│   ├── components/
+│   └── lib/
+└── README.md
 ```
 
----
+## Screenshots
 
-## 🚀 Hướng dẫn cài đặt và chạy (Quick Start)
 
-### Yêu cầu tiên quyết
-- Node.js (phiên bản > 20.0).
-- Telegram Account (Dùng *BotFather* để tạo Bot mới và lấy Token).
-- Cổng kết nối PayOS, cấu hình IPN Webhook.
-- Ngrok (để public port localhost ra internet phục vụ việc bắt Webhook của Telegram và PayOS).
-- Database PostgreSQL & Redis. (Bạn có thể dùng Neon.tech và upstash như setup hiện tại).
+### Telegram ordering flow
 
-### Bước 1: Setup Backend & Database
+![Telegram chat screenshot placeholder](./assets/telegram-chat-1.png)
+![Telegram chat screenshot placeholder](./assets/telegram-chat-2.png)
+![Telegram chat screenshot placeholder](./assets/telegram-chat-3.png)
 
-1. Clone thư mục dự án và di chuyển vào `backend`:
-   ```bash
-   cd milk-tea-bot/backend
-   npm install
-   ```
+### Kitchen dashboard
 
-2. Cài đặt các biến môi trường:
-   Tạo file `.env` tại thư mục `backend/` dựa trên tham khảo sau:
-   ```env
-   # TELEGRAM
-   TELEGRAM_BOT_TOKEN="your_bot_token"
-   TELEGRAM_WEBHOOK_SECRET="random_string_secret"
+![Kitchen dashboard screenshot placeholder](./assets/kitchen-dashboard.png)
 
-   # AI - GEMINI
-   GEMINI_API_KEY="your_gemini_api_key"
-   GEMINI_MODEL="gemini-3.1-flash-lite-preview"
-   
-   # PORTS & URL
-   PORT=5000
-   FRONTEND_URL="http://localhost:3000"
-   WEBHOOK_URL="https://your-ngrok-url.ngrok-free.dev" # Đổi lại theo ngrok sinh ra
+### Order history
 
-   # REDIS & DATABASE (POSTGRESQL)
-   UPSTASH_REDIS_REST_URL="..."
-   UPSTASH_REDIS_REST_TOKEN="..."
-   DATABASE_URL="..."
+![Order history screenshot placeholder](./assets/order-history.png)
 
-   # PAYOS
-   PAYOS_CLIENT_ID="..."
-   PAYOS_API_KEY="..."
-   PAYOS_CHECKSUM_KEY="..."
-   ```
+## Getting Started
 
-3. Nạp Menu Database (Seed Data):
-   ```bash
-   # Đồng bộ bảng vào Postgres (nếu cần đổi URL)
-   npx prisma db push 
-   
-   # Chạy kịch bản đọc file csv/Menu.csv nạp vào database
-   npm run seed
-   ```
+### Prerequisites
 
-4. Khởi động Backend:
-   ```bash
-   npm run dev
-   ```
-   > Backend sẽ lắng nghe tại `localhost:5000`.
+- Node.js 20 or newer
+- A Telegram bot token from BotFather
+- A PostgreSQL database
+- A Redis instance, such as Upstash
+- A PayOS account and API credentials
+- An ngrok tunnel or any public HTTPS endpoint for webhooks during local development
 
-### Bước 2: Bật Ngrok và trỏ Webhook
-Giữ máy chủ backend đang chạy, mở một terminal khác:
+### 1. Install dependencies
+
+From the repository root:
+
 ```bash
-# Public cổng 5000 thành HTTPS
-ngrok http 5000
+npm install
 ```
-Tiếp đến, lấy link ngrok (`https://______.ngrok-free.dev`) dán vào biến `WEBHOOK_URL` ở trong `.env` của backend. 
-Gửi 1 cURL Request hoặc dùng Postman gọi vào `POST {{WEBHOOK_URL}}/setup-webhook` để báo cho Server Telegram biết endpoint của bạn.
+
+Then install workspace dependencies if needed:
+
 ```bash
-Invoke-WebRequest -Method POST -Uri "WEBHOOK_URL/setup-webhook" -Headers @{ "x-admin-key" = "YOUR_ADMIN_KEY" }
+cd backend
+npm install
+
+cd ../frontend
+npm install
 ```
-Cấu hình Webhook PayOS trong cài đặt cua "kenh thanh toán" của PayOS.
 
+### 2. Configure environment variables
 
+Create a `.env` file inside `backend/` with values similar to the example below:
 
-### Bước 3: Setup Kitchen Dashboard (Frontend)
+```env
+TELEGRAM_BOT_TOKEN="your_telegram_bot_token"
+TELEGRAM_WEBHOOK_SECRET="your_webhook_secret"
+ADMIN_API_KEY="your_admin_key"
 
-1. Mở một terminal mới (split terminal), vào thư mục frontend:
-   ```bash
-   cd milk-tea-bot/frontend
-   npm install
-   ```
+GEMINI_API_KEY="your_gemini_api_key"
+GEMINI_MODEL="gemini-3-flash-preview"
 
-2. Khởi động Next.js:
-   ```bash
-   npm run dev
-   ```
-   > Dashboard bếp sẽ lắng nghe tại `http://localhost:3000`.
+PORT=5000
+WEBHOOK_URL="https://your-public-url.example"
+FRONTEND_URL="http://localhost:3000"
 
----
+UPSTASH_REDIS_REST_URL="your_upstash_redis_url"
+UPSTASH_REDIS_REST_TOKEN="your_upstash_redis_token"
 
-## 🧪 Cách tiến hành Testing Demo
+DATABASE_URL="your_postgres_connection_string"
 
-- **Bot Đặt Món**: Truy cập vào Telegram Bot, nhấn Bắt đầu (`/start`). Chat bằng tiếng việt, hỏi bot "Menu quán có gì", sau đó thêm món "1 ly olong sữa size M thêm trân châu" vào giỏ.
-- **Thanh toán**: Yêu cầu chốt đơn. Bot sẽ gửi trả một đường link thanh toán của PayOS. Nhấn vào chuyển sang Web, chuyen khoan thanh cong.
-- **Bếp nhận đơn**: Quay sang Browser `http://localhost:3000`, bạn sẽ thấy đơn vừa tạo "POP-UP" xuất hiện trên bảng của bếp với đầy đủ chú thích (Kích cỡ, topping, text tùy ý khách ghi chú thêm dặn dò). Mẹ có thể bắt đầu pha đồ uống!
+PAYOS_CLIENT_ID="your_payos_client_id"
+PAYOS_API_KEY="your_payos_api_key"
+PAYOS_CHECKSUM_KEY="your_payos_checksum_key"
+```
+
+### 3. Prepare the database
+
+Run Prisma and seed the menu data from CSV:
+
+```bash
+cd backend
+npx prisma db push
+npm run seed
+```
+
+### 4. Start the backend
+
+```bash
+cd backend
+npm run dev
+```
+
+The backend runs on `http://localhost:5000` by default.
+
+### 5. Start the frontend
+
+```bash
+cd frontend
+npm run dev
+```
+
+The dashboard runs on `http://localhost:3000` by default.
+
+## Webhook Setup
+
+To connect Telegram to the local backend, expose port `5000` through ngrok or another HTTPS tunnel, then update `WEBHOOK_URL` in `backend/.env`.
+
+After that, call the protected setup endpoint with the admin key:
+
+```bash
+Invoke-WebRequest -Method POST -Uri "https://your-public-url.example/setup-webhook" -Headers @{ "x-admin-key" = "your_admin_key" }
+```
+
+## Key Endpoints
+
+- `GET /health` - health check
+- `POST /webhook` - Telegram webhook endpoint
+- `POST /setup-webhook` - registers the Telegram webhook
+- `POST /payos/webhook` - PayOS payment callback
+- `GET /api/orders` - current kitchen orders
+- `GET /api/orders/history` - order history
+- `PATCH /api/orders/:id/status` - update order status
+
+## Demo Flow
+
+1. Open the Telegram bot and start a conversation.
+2. Ask for the menu, add items to the cart, and include any notes or customizations.
+3. Confirm the order to receive a PayOS payment link.
+4. Complete the payment.
+5. Open the kitchen dashboard and watch the order appear in the pending queue.
