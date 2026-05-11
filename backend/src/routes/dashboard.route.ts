@@ -7,8 +7,8 @@ import {
 
 const dashboardRouter = Router();
 
-dashboardRouter.get("/orders", getOrdersHandler);
-dashboardRouter.get("/orders/history", getOrderHistoryHandler);
-dashboardRouter.patch("/orders/:id/status", updateOrderStatusHandler);
+dashboardRouter.get("/", getOrdersHandler);
+dashboardRouter.get("/history", getOrderHistoryHandler);
+dashboardRouter.patch("/:id/status", updateOrderStatusHandler);
 
 export default dashboardRouter;

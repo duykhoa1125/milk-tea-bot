@@ -32,7 +32,7 @@ export const getActiveOrders = async () => {
       },
     },
     orderBy: {
-      createdAt: "asc",
+      createdAt: "asc",//Đơn nào tạo sớm hơn sẽ lên trước.
     },
   });
 };

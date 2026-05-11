@@ -89,8 +89,10 @@ export const checkout = async (
   const lockToken = crypto.randomUUID();
   let createdOrderId: number | null = null;
 
+
+  //Dòng này sử dụng lệnh `SET NX` của Redis. Nó chỉ ghi giá trị nếu `lockKey` chưa tồn tại. Nếu bạn nhấn thanh toán 2 lần trong 1 giây, yêu cầu thứ 2 sẽ bị chặn lại ngay lập tức vì "khóa" đang bị yêu cầu thứ 1 giữ.
   const acquiredLock = await redis.set(lockKey, lockToken, {
-    nx: true,
+    nx: true,//Chỉ set nếu key chưa tồn tại.
     ex: 30,
   });
 
@@ -119,6 +121,7 @@ export const checkout = async (
     const productIds = [...new Set(cart.map((item) => item.productId))];
     const toppingNames = [...new Set(cart.flatMap((item) => item.toppings))];
 
+    //Tại sao không dùng giá từ Frontend gửi lên? Để tránh việc người dùng can thiệp vào request để giảm giá sản phẩm.
     const [products, toppingProducts] = await Promise.all([
       prisma.product.findMany({
         where: { id: { in: productIds } },
@@ -208,7 +211,7 @@ export const checkout = async (
       },
     });
 
-    createdOrderId = order.id;
+    createdOrderId = order.id;//Nếu PayOS lỗi phía sau thì vẫn biết order nào để hủy.
 
     const paymentItems = cart.map((item) => {
       const product = productById.get(item.productId);

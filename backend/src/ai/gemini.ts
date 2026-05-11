@@ -25,6 +25,8 @@ import {
 } from "../services/order.service";
 import { getMenuPromptText } from "../services/menu.service";
 
+// dự án hiện tại chỉ lưu cart vào redis, còn lịch sử chat thì chỉ trên ram server
+
 const genAI = new GoogleGenerativeAI(config.GEMINI_API_KEY);
 
 const RETRY_ATTEMPTS = Number(process.env.GEMINI_RETRY_ATTEMPTS || 8);
@@ -308,6 +310,7 @@ export const handleAIFlow = async (
 
     // 2. Gửi text cho Gemini
     const promptWithMenu = `${menuContext}${cartEditGuidance}\n\nNormalized intent hint: checkout=${intentSignals.hasCheckoutIntent}; cart_edit=${intentSignals.hasCartEditIntent}; order_note=${intentSignals.hasOrderNoteIntent}.\nTin nhắn khách hàng: ${userPrompt}`;
+    
     let response = await sendMessageWithRetry(chat, promptWithMenu);
     let aiMessage = response.response;
     const executedCalls = new Set<string>();

@@ -34,12 +34,14 @@ export const createPaymentLink = async (input: {
   return payOS.paymentRequests.create(input);
 };
 
+//xác minh webhook từ payos hợp lệ không
 export const verifyPayOSWebhookPayload = async (
   payload: PayOSWebhookPayload,
 ) => {
   return payOS.webhooks.verify(payload as never);
 };
 
+//cập nhật trạng thái đơn hàng khi thanh toán thành công
 export const markOrderAsPaid = async (orderCode: number) => {
   const existingOrder = await prisma.order.findUnique({
     where: { id: orderCode },

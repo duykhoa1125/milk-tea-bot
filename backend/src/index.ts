@@ -49,7 +49,7 @@ app.post("/webhook", async (req, res) => {
 });
 
 // Kitchen dashboard API
-app.use("/api", dashboardRouter);
+app.use("/api/orders", dashboardRouter);
 
 // setup webhook manually via protected admin endpoint
 app.post("/setup-webhook", async (req, res) => {

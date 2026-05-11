@@ -7,6 +7,8 @@ const formatPrice = (price: number | null | undefined) => {
   return `${Math.round(price / 1000)}k`;
 };
 
+
+//menu for bot
 const mapProductToLine = (item: {
   id: string;
   name: string;
@@ -37,6 +39,8 @@ const mapProductToLine = (item: {
   return `- ${item.id}: ${item.name}`;
 };
 
+
+// menu for user
 const mapProductToUserLine = (item: {
   name: string;
   priceM: number | null;
@@ -147,6 +151,7 @@ export const getMenuForUserText = async () => {
   const drinks = products
     .filter((p) => p.type === ProductType.DRINK)
     .map(mapProductToUserLine);
+    
   const toppings = products
     .filter((p) => p.type === ProductType.TOPPING)
     .map(mapProductToUserLine);

@@ -24,7 +24,7 @@ const CART_ORDER_NOTE_TTL_SECONDS = 86400;
 const normalizeText = (value: string) => value.trim().toLowerCase();
 
 const matchesSelector = (item: CartItem, selector?: CartItemSelector) => {
-  if (!selector) return true;
+  if (!selector) return true;//Nếu không truyền selector → coi như khớp tất cả.
 
   if (selector.id && item.id !== selector.id) {
     return false;
