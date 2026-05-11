@@ -1,6 +1,8 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { config } from "../config/env";
 import { SYSTEM_INSTRUCTION } from "./prompts";
+import { detectIntentSignals } from "./intent-signals";
+import { createSessionManager } from "./session-manager";
 import {
   addToCartDeclaration,
   viewCartDeclaration,
@@ -106,106 +108,6 @@ const sendMessageWithRetry = async (chat: any, payload: unknown) => {
   }
 };
 
-const QUICK_CHECKOUT_INTENT_REGEX =
-  /\b(thanh\s*toan|checkout|chot\s*don|tinh\s*tien|tra\s*tien|xac\s*nhan\s*don)\b/i;
-const QUICK_CART_EDIT_INTENT_REGEX =
-  /\b(them|bo|doi|sua|giam|tang|xoa|replace|change|remove|update|chinh\s*sua\s*gio)\b/i;
-const QUICK_ORDER_NOTE_INTENT_REGEX =
-  /\b(note|ghi\s*chu|ghi\s*lai|dan|nhan)\b/i;
-
-const INTENT_KEYWORD_MAP = {
-  checkout: [
-    "thanh toán",
-    "checkout",
-    "chốt đơn",
-    "tính tiền",
-    "trả tiền",
-    "xác nhận đơn",
-    "lên đơn",
-  ],
-  cartEdit: [
-    "thêm",
-    "bỏ",
-    "đổi",
-    "sửa",
-    "giảm",
-    "tăng",
-    "xóa",
-    "chỉnh sửa giỏ",
-    "cập nhật giỏ",
-    "replace",
-    "change",
-    "remove",
-    "update",
-  ],
-  orderNote: [
-    "note",
-    "ghi chú",
-    "ghi lại",
-    "dặn",
-    "nhắn",
-    "lưu ý",
-    "yêu cầu đặc biệt",
-  ],
-} as const;
-
-type IntentSignals = {
-  normalizedPrompt: string;
-  hasCheckoutIntent: boolean;
-  hasCartEditIntent: boolean;
-  hasOrderNoteIntent: boolean;
-};
-
-const normalizeVietnameseText = (input: string) =>
-  input
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[đ]/g, "d")
-    .replace(/[^a-z0-9\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-const NORMALIZED_INTENT_KEYWORD_MAP = {
-  checkout: INTENT_KEYWORD_MAP.checkout.map(normalizeVietnameseText),
-  cartEdit: INTENT_KEYWORD_MAP.cartEdit.map(normalizeVietnameseText),
-  orderNote: INTENT_KEYWORD_MAP.orderNote.map(normalizeVietnameseText),
-} as const;
-
-const getKeywordHitCount = (
-  normalizedPrompt: string,
-  keywords: readonly string[],
-) => keywords.filter((keyword) => normalizedPrompt.includes(keyword)).length;
-
-const detectIntentSignals = (userPrompt: string): IntentSignals => {
-  const normalizedPrompt = normalizeVietnameseText(userPrompt);
-  const checkoutKeywordHits = getKeywordHitCount(
-    normalizedPrompt,
-    NORMALIZED_INTENT_KEYWORD_MAP.checkout,
-  );
-  const cartEditKeywordHits = getKeywordHitCount(
-    normalizedPrompt,
-    NORMALIZED_INTENT_KEYWORD_MAP.cartEdit,
-  );
-  const orderNoteKeywordHits = getKeywordHitCount(
-    normalizedPrompt,
-    NORMALIZED_INTENT_KEYWORD_MAP.orderNote,
-  );
-
-  return {
-    normalizedPrompt,
-    hasCheckoutIntent:
-      QUICK_CHECKOUT_INTENT_REGEX.test(normalizedPrompt) ||
-      checkoutKeywordHits > 0,
-    hasCartEditIntent:
-      QUICK_CART_EDIT_INTENT_REGEX.test(normalizedPrompt) ||
-      cartEditKeywordHits > 0,
-    hasOrderNoteIntent:
-      QUICK_ORDER_NOTE_INTENT_REGEX.test(normalizedPrompt) ||
-      orderNoteKeywordHits > 0,
-  };
-};
-
 const PAYOS_LINK_REGEX = /https?:\/\/pay\.payos\.vn\/\S+/i;
 
 export const chatModel = genAI.getGenerativeModel({
@@ -223,68 +125,14 @@ export const chatModel = genAI.getGenerativeModel({
   ],
 });
 
-// Cache history trên Object Tạm (Nếu server scale multi-node thì phải đưa đoạn history này vào Redis)
-type ChatSession = ReturnType<typeof chatModel.startChat>;
-type ChatSessionEntry = {
-  chat: ChatSession;
-  lastActiveAt: number;
-};
-
-const chatSessions = new Map<number, ChatSessionEntry>(); //Map trong RAM (bộ nhớ của server).
-// chatSessions = {
-//     userId1 -> chatSession1,
-//     userId2 -> chatSession2
-//   }
-
-const touchSession = (userId: number, chat: ChatSession) => {
-  chatSessions.set(userId, {
-    chat,
-    lastActiveAt: Date.now(),
-  });
-};
-
-const cleanupExpiredSessions = () => {
-  const now = Date.now();
-
-  for (const [userId, entry] of chatSessions.entries()) {
-    if (now - entry.lastActiveAt > CHAT_SESSION_TTL_MS) {
-      chatSessions.delete(userId);
-    }
-  }
-
-  if (chatSessions.size <= CHAT_SESSION_MAX_SIZE) {
-    return;
-  }
-
-  const overflow = chatSessions.size - CHAT_SESSION_MAX_SIZE;
-  const oldestEntries = [...chatSessions.entries()]
-    .sort((a, b) => a[1].lastActiveAt - b[1].lastActiveAt)
-    .slice(0, overflow);
-
-  for (const [userId] of oldestEntries) {
-    chatSessions.delete(userId);
-  }
-};
-
-const cleanupTimer = setInterval(
-  cleanupExpiredSessions,
-  CHAT_SESSION_CLEANUP_INTERVAL_MS,
+const sessionManager = createSessionManager(
+  () => chatModel.startChat({ history: [] }),
+  {
+    ttlMs: CHAT_SESSION_TTL_MS,
+    maxSize: CHAT_SESSION_MAX_SIZE,
+    cleanupIntervalMs: CHAT_SESSION_CLEANUP_INTERVAL_MS,
+  },
 );
-cleanupTimer.unref?.();
-
-const getOrCreateSession = (userId: number) => {
-  cleanupExpiredSessions();
-
-  const existingSession = chatSessions.get(userId);
-  if (existingSession) {
-    touchSession(userId, existingSession.chat);
-    return existingSession.chat;
-  }
-
-  const newSession = chatModel.startChat({ history: [] });
-  touchSession(userId, newSession);
-  return newSession;
-};
 
 export const handleAIFlow = async (
   userId: number,
@@ -306,11 +154,11 @@ export const handleAIFlow = async (
         : "";
 
     // 1. Tạo session hoặc lấy history cũ
-    const chat = getOrCreateSession(userId);
+    const chat = sessionManager.getOrCreateSession(userId);
 
     // 2. Gửi text cho Gemini
     const promptWithMenu = `${menuContext}${cartEditGuidance}\n\nNormalized intent hint: checkout=${intentSignals.hasCheckoutIntent}; cart_edit=${intentSignals.hasCartEditIntent}; order_note=${intentSignals.hasOrderNoteIntent}.\nTin nhắn khách hàng: ${userPrompt}`;
-    
+
     let response = await sendMessageWithRetry(chat, promptWithMenu);
     let aiMessage = response.response;
     const executedCalls = new Set<string>();
