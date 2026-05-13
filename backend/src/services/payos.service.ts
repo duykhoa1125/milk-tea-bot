@@ -94,3 +94,48 @@ export const markOrderAsPaid = async (orderCode: number) => {
     alreadyPaid: false,
   };
 };
+
+export const markOrderAsCancelled = async (orderCode: number) => {
+  const existingOrder = await prisma.order.findUnique({
+    where: { id: orderCode },
+    include: {
+      user: {
+        select: {
+          externalId: true,
+          name: true,
+        },
+      },
+    },
+  });
+
+  if (!existingOrder) {
+    throw new Error(`Không tìm thấy đơn hàng #${orderCode}`);
+  }
+
+  if (existingOrder.status !== OrderStatus.PENDING_PAYMENT) {
+    return {
+      order: existingOrder,
+      cancelledNow: false,
+    };
+  }
+
+  const updatedOrder = await prisma.order.update({
+    where: { id: orderCode },
+    data: {
+      status: OrderStatus.CANCELLED,
+    },
+    include: {
+      user: {
+        select: {
+          externalId: true,
+          name: true,
+        },
+      },
+    },
+  });
+
+  return {
+    order: updatedOrder,
+    cancelledNow: true,
+  };
+};

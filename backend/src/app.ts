@@ -23,7 +23,7 @@ app.use(express.json());
 app.use("/health", healthRouter);
 app.use("/webhook", telegramRouter);
 app.use("/api/orders", dashboardRouter);
-app.use("/payos/webhook", payosRouter);
+app.use("/payos", payosRouter);
 app.use("/setup-webhook", webhookSetupRouter);
 
 export default app;

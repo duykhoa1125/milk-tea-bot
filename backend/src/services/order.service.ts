@@ -236,13 +236,18 @@ export const checkout = async (
       };
     });
 
+    const cancelUrl =
+      config.WEBHOOK_URL && config.TELEGRAM_BOT_URL
+        ? `${config.WEBHOOK_URL}/payos/cancel?orderCode=${order.id}`
+        : `${config.FRONTEND_URL}/cancel`;
+
     const paymentLinkResponse = await createPaymentLink({
       orderCode: order.id,
       amount: calculatedTotal,
       description: `DH${order.id}`,
       items: paymentItems,
       returnUrl: config.TELEGRAM_BOT_URL || `${config.FRONTEND_URL}/success`,
-      cancelUrl: `${config.FRONTEND_URL}/cancel`,
+      cancelUrl,
     });
 
     const checkoutUrl =

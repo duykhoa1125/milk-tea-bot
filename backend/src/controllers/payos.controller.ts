@@ -1,11 +1,26 @@
 import { Request, Response } from "express";
 import { bot } from "../bot/instance";
+import { config } from "../config/env";
 import { clearCart } from "../services/cart.service";
 import {
+  markOrderAsCancelled,
   markOrderAsPaid,
   type PayOSWebhookPayload,
   verifyPayOSWebhookPayload,
 } from "../services/payos.service";
+
+const getPaymentCancelFallbackUrl = (orderCode?: number) => {
+  const url = new URL("/cancel", config.FRONTEND_URL);
+
+  if (orderCode) {
+    url.searchParams.set("orderCode", String(orderCode));
+  }
+
+  return url.toString();
+};
+
+const getTelegramReturnUrl = (orderCode?: number) =>
+  config.TELEGRAM_BOT_URL || getPaymentCancelFallbackUrl(orderCode);
 
 export const handlePayOSWebhook = async (req: Request, res: Response) => {
   const payload = req.body as PayOSWebhookPayload;
@@ -60,4 +75,31 @@ export const handlePayOSWebhook = async (req: Request, res: Response) => {
     console.error("PayOS webhook error:", error);
     res.status(500).json({ error: "Không thể xử lý webhook PayOS" });
   }
+};
+
+export const handlePayOSCancelRedirect = async (
+  req: Request,
+  res: Response,
+) => {
+  const orderCode = Number(req.query.orderCode);
+
+  if (Number.isNaN(orderCode)) {
+    res.redirect(getTelegramReturnUrl());
+    return;
+  }
+
+  try {
+    const cancelResult = await markOrderAsCancelled(orderCode);
+
+    if (cancelResult.cancelledNow) {
+      await bot.api.sendMessage(
+        cancelResult.order.user.externalId,
+        `Bạn đã hủy thanh toán cho đơn #${cancelResult.order.id}. Giỏ hàng vẫn được giữ lại, khi muốn thanh toán lại hãy nhắn "thanh toán" nhé.`,
+      );
+    }
+  } catch (error) {
+    console.error("PayOS cancel redirect error:", error);
+  }
+
+  res.redirect(getTelegramReturnUrl(orderCode));
 };

@@ -1,8 +1,12 @@
 import { Router } from "express";
-import { handlePayOSWebhook } from "../controllers/payos.controller";
+import {
+  handlePayOSCancelRedirect,
+  handlePayOSWebhook,
+} from "../controllers/payos.controller";
 
 const router = Router();
 
-router.post("/", handlePayOSWebhook);
+router.post("/webhook", handlePayOSWebhook);
+router.get("/cancel", handlePayOSCancelRedirect);
 
 export default router;

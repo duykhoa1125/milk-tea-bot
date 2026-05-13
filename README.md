@@ -14,6 +14,7 @@ This project is split into two applications:
 - AI ordering flow in Telegram with Gemini function calling.
 - Menu browsing, cart management, note handling, and checkout support.
 - PayOS payment link generation and webhook-based payment confirmation.
+- Telegram redirect after successful or cancelled PayOS checkout.
 - Real-time kitchen dashboard for pending and preparing orders.
 - Order history page with filtering and summary stats.
 - Dedicated success and cancel pages for payment redirects.
@@ -176,6 +177,7 @@ Invoke-WebRequest -Method POST -Uri "https://your-public-url.example/setup-webho
 - `POST /webhook` - Telegram webhook endpoint
 - `POST /setup-webhook` - registers the Telegram webhook
 - `POST /payos/webhook` - PayOS payment callback
+- `GET /payos/cancel` - PayOS cancel redirect that cancels pending payment orders
 - `GET /api/orders` - current kitchen orders
 - `GET /api/orders/history` - order history
 - `PATCH /api/orders/:id/status` - update order status
