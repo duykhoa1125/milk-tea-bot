@@ -63,7 +63,6 @@ milk-tea-bot/
 
 ## Screenshots
 
-
 ### Telegram ordering flow
 
 ![Telegram chat screenshot placeholder](./assets/telegram-chat-1.png)
@@ -114,7 +113,6 @@ Create a `.env` file inside `backend/` with values similar to the example below:
 ```env
 TELEGRAM_BOT_TOKEN="your_telegram_bot_token"
 TELEGRAM_WEBHOOK_SECRET="your_webhook_secret"
-ADMIN_API_KEY="your_admin_key"
 
 GEMINI_API_KEY="your_gemini_api_key"
 GEMINI_MODEL="gemini-3-flash-preview"
@@ -165,10 +163,10 @@ The dashboard runs on `http://localhost:3000` by default.
 
 To connect Telegram to the local backend, expose port `5000` through ngrok or another HTTPS tunnel, then update `WEBHOOK_URL` in `backend/.env`.
 
-After that, call the protected setup endpoint with the admin key:
+After that, call the setup endpoint:
 
 ```bash
-Invoke-WebRequest -Method POST -Uri "https://your-public-url.example/setup-webhook" -Headers @{ "x-admin-key" = "your_admin_key" }
+Invoke-WebRequest -Method POST -Uri "https://your-public-url.example/setup-webhook"
 ```
 
 ## Key Endpoints
