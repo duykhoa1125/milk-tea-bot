@@ -241,7 +241,7 @@ export const checkout = async (
       amount: calculatedTotal,
       description: `DH${order.id}`,
       items: paymentItems,
-      returnUrl: `${config.FRONTEND_URL}/success`,
+      returnUrl: config.TELEGRAM_BOT_URL || `${config.FRONTEND_URL}/success`,
       cancelUrl: `${config.FRONTEND_URL}/cancel`,
     });
 

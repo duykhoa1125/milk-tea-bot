@@ -113,6 +113,7 @@ Create a `.env` file inside `backend/` with values similar to the example below:
 ```env
 TELEGRAM_BOT_TOKEN="your_telegram_bot_token"
 TELEGRAM_WEBHOOK_SECRET="your_webhook_secret"
+TELEGRAM_BOT_URL="https://t.me/your_bot_username"
 
 GEMINI_API_KEY="your_gemini_api_key"
 GEMINI_MODEL="gemini-3-flash-preview"
