@@ -70,6 +70,42 @@ const createCheckoutFingerprint = (
     .digest("hex");
 };
 
+type CheckoutResult = {
+  success?: boolean;
+  error?: string;
+  orderId?: number;
+  orderCode?: number;
+  totalPrice?: number;
+  checkoutUrl?: string;
+  paymentLinkId?: string | null;
+};
+
+const getReusableCheckoutResult = async (
+  resultKey: string,
+): Promise<CheckoutResult | null> => {
+  const cachedResult = await redis.get<CheckoutResult>(resultKey);
+
+  if (!cachedResult) {
+    return null;
+  }
+
+  if (!cachedResult.orderId) {
+    return cachedResult;
+  }
+
+  const cachedOrder = await prisma.order.findUnique({
+    where: { id: cachedResult.orderId },
+    select: { status: true },
+  });
+
+  if (cachedOrder?.status === OrderStatus.PENDING_PAYMENT) {
+    return cachedResult;
+  }
+
+  await redis.del(resultKey);
+  return null;
+};
+
 export const checkout = async (
   telegramId: string,
   authorName: string,
@@ -97,18 +133,10 @@ export const checkout = async (
   });
 
   if (!acquiredLock) {
-    const cachedResult = await redis.get<Record<string, unknown>>(resultKey);
+    const cachedResult = await getReusableCheckoutResult(resultKey);
 
     if (cachedResult) {
-      return cachedResult as {
-        success?: boolean;
-        error?: string;
-        orderId?: number;
-        orderCode?: number;
-        totalPrice?: number;
-        checkoutUrl?: string;
-        paymentLinkId?: string | null;
-      };
+      return cachedResult;
     }
 
     return {

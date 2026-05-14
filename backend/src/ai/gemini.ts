@@ -110,6 +110,18 @@ const sendMessageWithRetry = async (chat: any, payload: unknown) => {
 
 const PAYOS_LINK_REGEX = /https?:\/\/pay\.payos\.vn\/\S+/i;
 
+const formatCheckoutReply = (result: {
+  orderId?: number;
+  totalPrice?: number;
+  checkoutUrl?: string;
+}) =>
+  [
+    `Đơn #${result.orderId} đã được tạo.`,
+    `Tổng tiền: ${(result.totalPrice ?? 0).toLocaleString("vi-VN")}đ`,
+    `Thanh toán tại đây: ${result.checkoutUrl}`,
+    "Sau khi thanh toán thành công, mình sẽ tự cập nhật trạng thái đơn cho bạn.",
+  ].join("\n");
+
 export const chatModel = genAI.getGenerativeModel({
   model: config.GEMINI_MODEL,
   systemInstruction: SYSTEM_INSTRUCTION,
@@ -380,17 +392,23 @@ export const handleAIFlow = async (
           return functionResult.message;
         }
 
-        return [
-          `Đơn #${functionResult.orderId} đã được tạo.`,
-          `Tổng tiền: ${functionResult.totalPrice.toLocaleString("vi-VN")}đ`,
-          `Thanh toán tại đây: ${functionResult.checkoutUrl}`,
-          "Sau khi thanh toán thành công, mình sẽ tự cập nhật trạng thái đơn cho bạn.",
-        ].join("\n");
+        return formatCheckoutReply(functionResult);
       }
     }
 
     // KHI AI TRẢ LỜI NGÔN NGỮ TỰ NHIÊN (TEXT)
     const finalText = aiMessage.text();
+
+    if (intentSignals.hasCheckoutIntent && PAYOS_LINK_REGEX.test(finalText)) {
+      const existingOrderNote = await getCartOrderNote(userId);
+      const result = await checkout(String(userId), userName, existingOrderNote);
+
+      if ("error" in result && typeof result.error === "string") {
+        return result.error;
+      }
+
+      return formatCheckoutReply(result);
+    }
 
     if (PAYOS_LINK_REGEX.test(finalText) && !intentSignals.hasCheckoutIntent) {
       if (hasPendingPaymentBeforeTurn) {
